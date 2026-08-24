@@ -6,6 +6,8 @@ Assignment 0 is pass/fail (it's not graded, but you will be asked to drop the cl
 - uv
 - VS Code (optional, highly recommended), Python debugger
 
+- Chaewon Try
+
 ## Git ready
 
 If you don't already have it, install [git](https://github.com/git-guides).
