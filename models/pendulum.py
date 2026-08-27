@@ -11,7 +11,7 @@ def dynamics(t, state, params):
     angular_velocity = state[1]
 
     angular_acceleration = (
-        mass * gravity * length * np.sin(angle)
+        -mass * gravity * length * np.sin(angle)
         - damping_coeff * angular_velocity  # <-- DAMPING TERM
     ) / (mass * length**2)
 
@@ -39,5 +39,5 @@ def calculate_energy(state, params):
     angular_velocity = state[1]
 
     kinetic_energy = 0.5 * mass * (length * angular_velocity) ** 2
-    potential_energy = mass * gravity * length * np.cos(angle)
+    potential_energy = mass * gravity * length * (1 - np.cos(angle))
     return kinetic_energy, potential_energy
