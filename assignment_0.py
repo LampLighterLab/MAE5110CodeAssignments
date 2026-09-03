@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import timeit
 
 from models import pendulum as model
-#from integrators import explicit_euler as integrator
-from integrators import rk4 as integrator
+from integrators import explicit_euler as integrator
+#from integrators import rk4 as integrator
 
 # Basic simulation of the pendulum
 
@@ -35,7 +35,7 @@ def sweep_largest():
 
         # sanity check the energies
         kinetic_energy, potential_energy = model.calculate_energy(state_traj, params)
-        if np.isclose(potential_energy[0] + kinetic_energy[0], potential_energy[-1] + kinetic_energy[-1], rtol=.01) == False:
+        if np.isclose(potential_energy[0] + kinetic_energy[0], potential_energy[-1] + kinetic_energy[-1], rtol=.001) == False:
             Stable = False
             plt.figure()
             plt.plot(time_traj, potential_energy, label="Potential energy")
