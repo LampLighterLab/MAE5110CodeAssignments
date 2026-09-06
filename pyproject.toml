@@ -7,6 +7,10 @@ requires-python = ">=3.14"
 dependencies = [
     "matplotlib",
     "numpy",
+<<<<<<< HEAD
+=======
+    "ruff"
+>>>>>>> upstream/main
 ]
 
 [dependency-groups]

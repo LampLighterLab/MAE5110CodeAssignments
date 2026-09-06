@@ -11,9 +11,13 @@ def dynamics(t, state, params):
     angular_velocity = state[1]
 
     angular_acceleration = (
+<<<<<<< HEAD
         - mass * gravity * length * np.sin(angle) 
         # Initially above term was positive, but it should be negative because the torque due to 
         # gravity acts in the opposite direction of the pendulum's motion.
+=======
+        mass * gravity * length * np.sin(angle)
+>>>>>>> upstream/main
         - damping_coeff * angular_velocity  # <-- DAMPING TERM
     ) / (mass * length**2)
 
@@ -23,7 +27,11 @@ def dynamics(t, state, params):
 
 def generate_params():
     params = {
+<<<<<<< HEAD
         "gravity": 9.81,  # gravity (m/s^2)
+=======
+        "gravity": 9.81,  # gravity m/s^2)
+>>>>>>> upstream/main
         "length": 1,  # rod length (m)
         "mass": 1,  # point mass at end of rod (kg)
         "damping_coeff": 0.1,  # damping coefficient (kg*m^2/s)
@@ -41,6 +49,11 @@ def calculate_energy(state, params):
     angular_velocity = state[1]
 
     kinetic_energy = 0.5 * mass * (length * angular_velocity) ** 2
+<<<<<<< HEAD
     potential_energy = - mass * gravity * length * np.cos(angle)
     # Initially potential energy was positive, but it should be negative to match the coordinate system (also matches lecture notes).
     return kinetic_energy, potential_energy
+=======
+    potential_energy = mass * gravity * length * np.cos(angle)
+    return kinetic_energy, potential_energy
+>>>>>>> upstream/main
