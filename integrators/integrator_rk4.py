@@ -17,4 +17,9 @@ class IntegratorRK4(IntegratorBase):
             k4 = dynamics_function(t + timestep, state_trajectory[:, step] + timestep * k3, param_model) # [Mx1]
 
             state_trajectory[:, step + 1] = state_trajectory[:, step] + (timestep / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+
+            # for checking phase change: height of ball from positive to negative
+            if (state_trajectory[0, step] * state_trajectory[0, step + 1]) < 0:
+                print(f"Phase change at time {t}")
+            
         return state_trajectory

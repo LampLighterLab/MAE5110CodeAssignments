@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 # from models import pendulum as model
 
 # parameters
-integrator_type = "euler"  # "euler" or "rk4"
-# integrator_type = "rk4"    # "euler" or "rk4"
+# integrator_type = "euler"  # "euler" or "rk4"
+integrator_type = "rk4"    # "euler" or "rk4"
 integrator = None
 if integrator_type == "euler":
     from integrators import integrator_euler as integrator_module
@@ -50,14 +50,14 @@ else:
 # euler: ok at 100, blow up at 1000
 # timestep = 1e-5 * 1000
 # rk4: ok at 10000, blow up at 100000
-# timestep = 1e-5 * 100000
+# timestep = 1e-5 * 100
 # sim_time = 5.0
 
 # bouncing ball
 # euler: ok at 10, blow up at 100
-timestep = 1e-5 * 10
+# timestep = 1e-5 * 100
 # rk4: ok at 1000, blow up at 10000
-# timestep = 1e-5 * 10000
+timestep = 1e-5 * 1000
 sim_time = 5.0
 
 n_timesteps = int(sim_time / timestep) + 1
@@ -85,19 +85,25 @@ state_traj = integrator.integrate(
 # constant. If we turn on the damping coefficient, it should slowly bleed out energy until it comes to
 # a stand-still.
 
-potential_energy, kinetic_energy = dynamic_module.calculate_energy(state_traj, params) # type: ignore
+kinetic_energy, potential_energy = dynamic_module.calculate_energy(state_traj, params) # type: ignore
 
-plt.figure()
-plt.plot(time_traj, state_traj[0,:],  label=f"{dynamic_type} height")
-plt.plot(time_traj, state_traj[1,:],  label=f"{dynamic_type} velocity")
-plt.plot(time_traj, potential_energy, label=f"{dynamic_type} potential energy")
-plt.plot(time_traj, kinetic_energy, label=f"{dynamic_type} kinetic energy")
-plt.plot(time_traj, potential_energy + kinetic_energy, label=f"{dynamic_type} total energy")
-plt.xlabel("Time (s)")
-plt.ylabel("Energy (J)")
-plt.title(f"{dynamic_type} energy")
-plt.legend()
-plt.tight_layout()
-plt.show()
+print(f"Initial total energy: {potential_energy[0] + kinetic_energy[0]}")
+print(f"Final total energy: {potential_energy[-1] + kinetic_energy[-1]}")
+print(f"Change ratio: {(potential_energy[-1] + kinetic_energy[-1]) / (potential_energy[0] + kinetic_energy[0])}")
+
+if True:
+# if False:
+    plt.figure()
+    # plt.plot(time_traj, state_traj[0,:],  label=f"{dynamic_type} height")
+    # plt.plot(time_traj, state_traj[1,:],  label=f"{dynamic_type} velocity")
+    plt.plot(time_traj, potential_energy, label=f"{dynamic_type} potential energy")
+    plt.plot(time_traj, kinetic_energy, label=f"{dynamic_type} kinetic energy")
+    plt.plot(time_traj, potential_energy + kinetic_energy, label=f"{dynamic_type} total energy")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Energy (J)")
+    plt.title(f"{dynamic_type} energy")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
 # TODO: make a phase portrait plot

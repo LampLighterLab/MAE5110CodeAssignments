@@ -51,4 +51,4 @@ def calculate_energy(state, params):
     spring_potential_energy[height > h0] = 0.0 # zero out spring potential energy if above ground
     potential_energy += spring_potential_energy
 
-    return potential_energy, kinetic_energy
+    return kinetic_energy, potential_energy
