@@ -5,7 +5,13 @@ from models import rimless_wheel as model
 from integrators import rk4 as integrator
 
 params = model.generate_params()
-initial_state = np.array([np.deg2rad(10.0), 0.0, 0.0])  # theta, theta dot, base height
+
+# theta, theta dot, base height
+initial_state = np.array([np.deg2rad(10.0), np.deg2rad(0.0), 0.0])
+
+theta = initial_state[0]
+alpha, gamma = params["alpha"], params["gamma"]
+assert (gamma - alpha) < theta < (alpha + gamma)
 
 timestep = 1e-4
 sim_time = 5.0

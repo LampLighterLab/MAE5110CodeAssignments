@@ -1,5 +1,6 @@
 from typing import Callable
 import numpy.typing as npt
+import numpy as np
 
 
 ContinuousDynamics = Callable[[float, npt.NDArray], npt.NDArray]

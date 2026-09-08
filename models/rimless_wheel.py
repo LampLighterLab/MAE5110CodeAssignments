@@ -21,14 +21,16 @@ def discrete_dynamics(
     theta_new, theta_dot_new = new_state
     global_height_new = global_height
 
+    triangle_base = 2 * length * np.sin(alpha)
+
     if theta_new > alpha + gamma:
         theta_new = gamma - alpha
         theta_dot_new = theta_dot * np.cos(2 * alpha)
-
-        triangle_base = 2 * length * np.sin(alpha)
         global_height_new -= triangle_base * np.sin(gamma)
-
-    # TODO: work out how to do the opposite direction
+    elif theta_new < gamma - alpha:
+        theta_new = alpha + gamma
+        theta_dot_new = theta_dot * np.cos(2 * alpha)
+        global_height_new += triangle_base * np.sin(gamma)
 
     return np.array([theta_new, theta_dot_new, global_height_new])
 
@@ -49,7 +51,7 @@ def generate_params():
         "length": 1,  # rod length (m)
         "mass": 1,  # point mass at end of rod (kg)
         "alpha": np.deg2rad(360.0 / 6) / 2.0,
-        "gamma": np.deg2rad(80),
+        "gamma": np.deg2rad(30.0),
     }
     return params
 
