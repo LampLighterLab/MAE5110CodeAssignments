@@ -19,6 +19,7 @@ def dynamics(t, state, params):
     return state_derivative
 
 
+
 def generate_params():
     params = {
         "gravity": 9.81,  # gravity m/s^2)
@@ -41,3 +42,4 @@ def calculate_energy(state, params):
     kinetic_energy = 0.5 * mass * (length * angular_velocity) ** 2
     potential_energy = mass * gravity * length * np.cos(angle)
     return kinetic_energy, potential_energy
+
