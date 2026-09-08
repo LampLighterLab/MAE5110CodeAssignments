@@ -12,18 +12,25 @@ def discrete_dynamics(
 ) -> npt.NDArray:
     alpha = params["alpha"]
     gamma = params["gamma"]
+    length = params["length"]
 
-    _, theta_dot = state
-    new_state = integrator(lambda _, x: swing_dynamics(x, params), 0.0, state, dt)
+    theta, theta_dot, global_height = state
+    new_state = integrator(
+        lambda _, x: swing_dynamics(x, params), 0.0, np.array([theta, theta_dot]), dt
+    )
     theta_new, theta_dot_new = new_state
+    global_height_new = global_height
 
     if theta_new > alpha + gamma:
         theta_new = gamma - alpha
         theta_dot_new = theta_dot * np.cos(2 * alpha)
 
+        triangle_base = 2 * length * np.sin(alpha)
+        global_height_new -= triangle_base * np.sin(gamma)
+
     # TODO: work out how to do the opposite direction
 
-    return np.array([theta_new, theta_dot_new])
+    return np.array([theta_new, theta_dot_new, global_height_new])
 
 
 def swing_dynamics(state: npt.NDArray, params):
@@ -54,8 +61,14 @@ def calculate_angular_momentum(states: npt.NDArray, params):
 
 
 def calculate_energy(states: npt.NDArray, params):
+    gravity = params["gravity"]
     mass = params["mass"]
     length = params["length"]
 
-    # inertia = mass * length ** 2
-    # kinetic_energy = 1/2 * mass *
+    theta, theta_dot, global_height = states
+
+    inertia = mass * length**2
+    kinetic_energy = 0.5 * inertia * theta_dot**2
+    potential_energy = mass * gravity * (global_height + length * np.cos(theta))
+
+    return kinetic_energy, potential_energy
