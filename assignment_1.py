@@ -1,3 +1,4 @@
+import argparse
 import enum
 
 import matplotlib.pyplot as plt
@@ -9,36 +10,116 @@ from models import rimless_wheel as model
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Simulate the rimless wheel")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("attractors", help="plot the attractor map")
+    subparsers.add_parser("trajectory", help="plot a single simulation")
+    subparsers.add_parser("return", help="plot a single simulation")
+    args = parser.parse_args()
+
     params = model.generate_params()
 
     timestep = 1e-3
-    sim_time = 5.0
 
-    theta_min, theta_max = np.deg2rad(-10.0), np.deg2rad(50.0)
-    num_theta = 40
-    theta_dot_min, theta_dot_max = np.deg2rad(-50.0), np.deg2rad(50.0)
-    num_theta_dot = 40
+    if args.command == "attractors":
+        plot_attractors(params, timestep, sim_time=5.0)
+    elif args.command == "trajectory":
+        initial_state = np.array([np.deg2rad(10.0), np.deg2rad(0.0), 0.0])
+        time_traj, state_traj = simulate(initial_state, params, timestep, sim_time=5.0)
+        plot_traj(time_traj, state_traj, params)
+    elif args.command == "return":
+        plot_return_map(params, timestep, sim_time=5.0)
+
+
+def plot_return_map(params, timestep, sim_time):
+    THETA_MIN, THETA_MAX = np.deg2rad(-50.0), np.deg2rad(50.0)
+    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(50.0)
+    NUM_SAMPLES = 500  # sample many initial conditions
+
+    rng = np.random.default_rng(0)
+    current_velocities = []
+    next_velocities = []
+    alpha, gamma = params["alpha"], params["gamma"]
+
+    progress = tqdm(total=NUM_SAMPLES)
+    sample_number = 0
+    while sample_number < NUM_SAMPLES:
+        theta = rng.uniform(THETA_MIN, THETA_MAX)
+        theta_dot = rng.uniform(THETA_DOT_MIN, THETA_DOT_MAX)
+
+        if theta <= (gamma - alpha) or (alpha + gamma) <= theta:
+            continue
+
+        initial_state = np.array([theta, theta_dot, 0.0])
+        _, state_traj = simulate(initial_state, params, timestep, sim_time)
+        pre_impact_steps = get_pre_impact_steps(state_traj)
+        pre_impact_velocities = state_traj[1, pre_impact_steps].flatten()
+
+        current_velocities.extend(pre_impact_velocities[:-1])
+        next_velocities.extend(pre_impact_velocities[1:])
+        sample_number += 1
+        progress.update()
+
+    progress.close()
+
+    fig, ax = plt.subplots()
+    if current_velocities:
+        current_velocities_deg = np.rad2deg(current_velocities)
+        next_velocities_deg = np.rad2deg(next_velocities)
+        ax.scatter(
+            current_velocities_deg,
+            next_velocities_deg,
+            color="#3a86ff",
+            s=20,
+            alpha=0.75,
+        )
+
+        velocity_min = min(min(current_velocities_deg), min(next_velocities_deg))
+        velocity_max = max(max(current_velocities_deg), max(next_velocities_deg))
+    else:
+        velocity_min, velocity_max = np.rad2deg([THETA_DOT_MIN, THETA_DOT_MAX])
+
+    velocity_padding = 0.05 * (velocity_max - velocity_min)
+    plot_min = velocity_min - velocity_padding
+    plot_max = velocity_max + velocity_padding
+
+    ax.plot(
+        [plot_min, plot_max],
+        [plot_min, plot_max],
+        "k--",
+        label="Identity",
+    )
+    ax.set_xlim(plot_min, plot_max)
+    ax.set_ylim(plot_min, plot_max)
+    ax.set_title("Rimless Wheel Return Map")
+    ax.set_xlabel(r"Pre-impact velocity $\dot{\theta}_k$ (deg/s)")
+    ax.set_ylabel(r"Next pre-impact velocity $\dot{\theta}_{k+1}$ (deg/s)")
+    ax.grid(alpha=0.25)
+    ax.legend()
+    fig.tight_layout()
+    plt.show()
+
+
+def plot_attractors(params, timestep, sim_time):
+    THETA_MIN, THETA_MAX = np.deg2rad(-10.0), np.deg2rad(50.0)
+    NUM_THETA = 40
+    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-50.0), np.deg2rad(50.0)
+    NUM_THETA_DOT = 40
 
     attractor_points = {attractor: [] for attractor in Attractor}
 
     alpha, gamma = params["alpha"], params["gamma"]
 
-    # initial_state = np.array([gamma - alpha + 0.1, -1.0, 0.0])
-    # time_traj, state_traj = simulate(initial_state, params, timestep, sim_time)
-    # attractor = classify_attractor(state_traj)
-    # print(attractor)
-    # return
-
-    for theta in tqdm(np.linspace(theta_min, theta_max, num_theta)):
+    for theta in tqdm(np.linspace(THETA_MIN, THETA_MAX, NUM_THETA)):
         for theta_dot in tqdm(
-            np.linspace(theta_dot_min, theta_dot_max, num_theta_dot), leave=False
+            np.linspace(THETA_DOT_MIN, THETA_DOT_MAX, NUM_THETA_DOT), leave=False
         ):
             initial_state = np.array([theta, theta_dot, 0.0])
 
             if theta < (gamma - alpha) or (alpha + gamma) < theta:
                 continue
 
-            time_traj, state_traj = simulate(initial_state, params, timestep, sim_time)
+            _, state_traj = simulate(initial_state, params, timestep, sim_time)
             attractor = classify_attractor(state_traj)
             attractor_points[attractor].append((theta, theta_dot))
 
@@ -117,7 +198,7 @@ def classify_attractor(state_traj) -> Attractor:
 def get_pre_impact_steps(state_traj):
     global_height = state_traj[2]
     height_diff = np.diff(global_height)
-    pre_impact_steps = np.argwhere(height_diff < 0)
+    pre_impact_steps = np.argwhere(np.abs(height_diff) > 1e-6)
     return pre_impact_steps
 
 
