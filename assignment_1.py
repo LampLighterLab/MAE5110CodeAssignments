@@ -1,5 +1,6 @@
 import argparse
 import enum
+import math
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 
@@ -44,24 +45,34 @@ def main():
     args = parser.parse_args()
 
     params = model.generate_params()
-
-    timestep = 1e-3
+    large_timestep = 1e-2
+    small_timestep = 1e-3
 
     # Issues
     # TODO: fix attractor map resolution (too low right now, make it look good at high resolutions)
     # TODO: fix return map fixed point finding, at higher inclination/spokes not getting enough samples near 0
 
     if args.command == "attractors":
-        result = compute_attractors(params, timestep, sim_time=5.0)
+        result = compute_attractors(
+            params, large_timestep, small_timestep, sim_time=5.0
+        )
         plot_attractors(result)
         plt.show()
     elif args.command == "trajectory":
-        initial_state = np.array([np.deg2rad(10.0), np.deg2rad(0.0), 0.0])
-        time_traj, state_traj = simulate(initial_state, params, timestep, sim_time=5.0)
+        initial_state = np.array([np.deg2rad(10.0), np.deg2rad(-500.0), 0.0])
+        time_traj, state_traj = simulate(
+            initial_state,
+            params,
+            large_timestep,
+            small_timestep,
+            sim_time=5.0,
+        )
         plot_traj(time_traj, state_traj, params)
         plt.show()
     elif args.command == "return":
-        result = compute_return_map(params, timestep, sim_time=5.0)
+        result = compute_return_map(
+            params, large_timestep, small_timestep, sim_time=5.0
+        )
         print_return_map_results(result)
         plot_return_map(result)
         plt.show()
@@ -74,7 +85,8 @@ def main():
                     params,
                     "gamma",
                     np.deg2rad(inclination),
-                    timestep,
+                    large_timestep,
+                    small_timestep,
                     7.0,
                 ): inclination
                 for inclination in inclinations
@@ -102,7 +114,8 @@ def main():
                     params,
                     "alpha",
                     np.deg2rad(360.0 / spokes) / 2.0,
-                    timestep,
+                    large_timestep,
+                    small_timestep,
                     7.0,
                 ): spokes
                 for spokes in spoke_counts
@@ -121,79 +134,126 @@ def main():
                 plt.close(attractor_fig)
 
 
-def compute_sweep_case(params, parameter_name, parameter_value, timestep, sim_time):
+def compute_sweep_case(
+    params,
+    parameter_name,
+    parameter_value,
+    large_timestep,
+    small_timestep,
+    sim_time,
+):
     sweep_params = params.copy()
     sweep_params[parameter_name] = parameter_value
     return_map = compute_return_map(
-        sweep_params, timestep, sim_time, show_progress=False
+        sweep_params,
+        large_timestep,
+        small_timestep,
+        sim_time,
+        show_progress=False,
     )
     attractors = compute_attractors(
-        sweep_params, timestep, sim_time, show_progress=False
+        sweep_params,
+        large_timestep,
+        small_timestep,
+        sim_time,
+        show_progress=False,
     )
     return return_map, attractors
 
 
 def compute_return_map(
-    params, timestep, sim_time, show_progress=True
+    params, large_timestep, small_timestep, sim_time, show_progress=True
 ) -> ReturnMapResult:
     # Since we're most interested in collecting theta-dot transitions here,
-    # I don't sample over theta. I observed no noticable difference in the
-    # output plot.
-    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(50.0)
-    NUM_SAMPLES = 500  # sample many initial conditions
-    FIXED_POINT_THRESHOLD = 0.01
-    FLOQUET_PERTURBATION = np.deg2rad(1.0)
+    # we don't need to sample over theta. We can just start the wheel right before impact.
+    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(200.0)
+    NUM_THETA_DOT = 250
 
-    rng = np.random.default_rng(0)
+    FLOQUET_PERTURBATION = np.deg2rad(1.0)
+    NUM_FLOQUET_PERTURBATIONS = 5
+    FLOQUET_DT = 5e-4  # use more accurate simulation for floquet estimation
+    BISECTION_DT = 1e-3
+
     current_velocities = []
     next_velocities = []
-    alpha, gamma = params["alpha"], params["gamma"]
 
-    progress = tqdm(total=NUM_SAMPLES, leave=False, disable=not show_progress)
-    sample_number = 0
-    while sample_number < NUM_SAMPLES:
-        theta = params["gamma"]
-        theta_dot = rng.uniform(THETA_DOT_MIN, THETA_DOT_MAX)
+    for theta_dot in tqdm(
+        np.linspace(THETA_DOT_MIN, THETA_DOT_MAX, NUM_THETA_DOT),
+        leave=False,
+        disable=not show_progress,
+    ):
+        # get_next_pre_impact_velocity automatically places the wheel at impact depending on the direction
+        next_theta_dot = get_next_pre_impact_velocity(
+            theta_dot, params, large_timestep, small_timestep, sim_time
+        )
 
-        if theta <= (gamma - alpha) or (alpha + gamma) <= theta:
-            continue
-
-        initial_state = np.array([theta, theta_dot, 0.0])
-        _, state_traj = simulate(initial_state, params, timestep, sim_time)
-        pre_impact_steps = get_pre_impact_steps(state_traj)
-        pre_impact_velocities = state_traj[1, pre_impact_steps].flatten()
-
-        current_velocities.extend(pre_impact_velocities[:-1])
-        next_velocities.extend(pre_impact_velocities[1:])
-        sample_number += 1
-        progress.update()
-
-    progress.close()
+        current_velocities.append(theta_dot)
+        next_velocities.append(next_theta_dot)
 
     current_velocities = np.array(current_velocities)
     next_velocities = np.array(next_velocities)
 
-    fixed_point_idx = np.argwhere(
-        np.abs(next_velocities - current_velocities) < FIXED_POINT_THRESHOLD
-    )
-    fixed_points = current_velocities[fixed_point_idx]
+    sort_args = np.argsort(current_velocities)
+    current_velocities = current_velocities[sort_args]
+    next_velocities = next_velocities[sort_args]
 
-    # We know there will be 2 fixed points, so we'll divide the set we found in two and average
-    avg_fixed_point = np.mean(fixed_points)
-    small_fixed_point = np.mean(fixed_points[fixed_points < avg_fixed_point])
-    large_fixed_point = np.mean(fixed_points[fixed_points >= avg_fixed_point])
+    deltas = next_velocities - current_velocities
 
-    lower_velocity = large_fixed_point - FLOQUET_PERTURBATION
-    upper_velocity = large_fixed_point + FLOQUET_PERTURBATION
-    lower_next_velocity = get_next_pre_impact_velocity(
-        lower_velocity, params, timestep, sim_time
+    zero_crossings = np.where(np.diff(deltas >= 0))[0]
+    after_crossing = zero_crossings + 1
+
+    # Filter out discontinous branch changes. Not the most robust method, but good enough for our purposes.
+    DISCONTINUITY_THRESH = np.deg2rad(10.0)
+    continuous = (
+        np.abs(next_velocities[after_crossing] - next_velocities[zero_crossings])
+        < DISCONTINUITY_THRESH
     )
-    upper_next_velocity = get_next_pre_impact_velocity(
-        upper_velocity, params, timestep, sim_time
+    zero_crossings = zero_crossings[continuous]
+    after_crossing = after_crossing[continuous]
+
+    def f(theta_dot):
+        return (
+            get_next_pre_impact_velocity(
+                theta_dot, params, BISECTION_DT, BISECTION_DT, sim_time
+            )
+            - theta_dot
+        )
+
+    fixed_points = []
+    for lower_idx, upper_idx in zip(zero_crossings, after_crossing):
+        lower = current_velocities[lower_idx]
+        lower_value = next_velocities[lower_idx] - lower
+        upper = current_velocities[upper_idx]
+        upper_value = next_velocities[upper_idx] - upper
+
+        zero_point = bisection_method(f, lower, lower_value, upper, upper_value)
+        fixed_points.append(zero_point)
+
+    # fixed_points = (
+    #     current_velocities[after_crossing] + current_velocities[zero_crossings]
+    # ) / 2
+
+    # We know there should be 2 fixed points, so we'll take min and max.
+    small_fixed_point = min(fixed_points)
+    large_fixed_point = max(fixed_points)
+
+    perturbation_multiples = np.arange(
+        -NUM_FLOQUET_PERTURBATIONS, NUM_FLOQUET_PERTURBATIONS + 1
     )
-    floquet_multiplier = (upper_next_velocity - lower_next_velocity) / (
-        upper_velocity - lower_velocity
+    perturbed_velocities = (
+        large_fixed_point + perturbation_multiples * FLOQUET_PERTURBATION
     )
+    perturbed_next_velocities = np.array(
+        [
+            get_next_pre_impact_velocity(
+                velocity, params, FLOQUET_DT, FLOQUET_DT, sim_time
+            )
+            for velocity in perturbed_velocities
+        ]
+    )
+    floquet_multiplier = np.polyfit(
+        perturbed_velocities, perturbed_next_velocities, deg=1
+    )[0]
 
     return ReturnMapResult(
         current_velocities=current_velocities,
@@ -222,7 +282,7 @@ def plot_return_map(result: ReturnMapResult):
         current_velocities_deg,
         next_velocities_deg,
         color="#3a86ff",
-        s=20,
+        s=10,
         alpha=0.75,
     )
 
@@ -273,14 +333,11 @@ def plot_return_map(result: ReturnMapResult):
 
 
 def compute_attractors(
-    params, timestep, sim_time, show_progress=True
+    params, large_timestep, small_timestep, sim_time, show_progress=True
 ) -> AttractorMapResult:
     alpha, gamma = params["alpha"], params["gamma"]
 
-    THETA_MIN, THETA_MAX = (
-        np.nextafter(gamma - alpha, np.inf),
-        np.nextafter(alpha + gamma, -np.inf),
-    )
+    THETA_MIN, THETA_MAX = gamma - alpha, alpha + gamma
     NUM_THETA = 40
     THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(50.0)
     NUM_THETA_DOT = 40
@@ -298,7 +355,9 @@ def compute_attractors(
             disable=not show_progress,
         ):
             initial_state = np.array([theta, theta_dot, 0.0])
-            _, state_traj = simulate(initial_state, params, timestep, sim_time)
+            _, state_traj = simulate(
+                initial_state, params, large_timestep, small_timestep, sim_time
+            )
             attractor = classify_attractor(state_traj)
             attractor_points[attractor].append((theta, theta_dot))
 
@@ -335,23 +394,45 @@ def plot_attractors(result: AttractorMapResult):
     return fig
 
 
-def simulate(initial_state, params, timestep, sim_time):
+def simulate(initial_state, params, large_timestep, small_timestep, sim_time):
     theta = initial_state[0]
     alpha, gamma = params["alpha"], params["gamma"]
-    assert (gamma - alpha) < theta < (alpha + gamma)
+    assert (gamma - alpha) <= theta <= (alpha + gamma)
 
-    n_timesteps = int(sim_time / timestep) + 1
-    time_traj = np.arange(n_timesteps) * timestep
-    state_traj = np.zeros((3, n_timesteps))
-    state_traj[:, 0] = initial_state
+    times = [0.0]
+    states = [np.array(initial_state, copy=True)]
 
-    # simulation loop
-    for step in range(n_timesteps - 1):
-        state_traj[:, step + 1] = model.discrete_dynamics(
-            state_traj[:, step], integrator, timestep, params
+    while times[-1] < sim_time:
+        adaptive_timestep = get_timestep_for_state(
+            states[-1], params, large_timestep, small_timestep
         )
+        adaptive_timestep = min(adaptive_timestep, sim_time - times[-1])
+        next_state = model.discrete_dynamics(
+            states[-1], integrator, adaptive_timestep, params
+        )
+        times.append(times[-1] + adaptive_timestep)
+        states.append(next_state)
 
-    return time_traj, state_traj
+    return np.asarray(times), np.column_stack(states)
+
+
+def get_timestep_for_state(state, params, large_timestep, small_timestep):
+    alpha, gamma = params["alpha"], params["gamma"]
+    upper_limit = alpha + gamma
+    lower_limit = gamma - alpha
+    total_range = upper_limit - lower_limit
+    assert total_range > 0
+
+    theta, theta_dot, _ = state
+
+    if theta_dot >= 0:
+        distance = upper_limit - theta
+    else:
+        distance = theta - lower_limit
+
+    assert distance >= 0
+    progress = (total_range - distance) / total_range
+    return progress * small_timestep + (1 - progress) * large_timestep
 
 
 def classify_attractor(state_traj) -> Attractor:
@@ -372,20 +453,77 @@ def classify_attractor(state_traj) -> Attractor:
             return Attractor.UNKNOWN
 
 
+IMPACT_DETECTION_THRESH = 1e-6
+
+
 def get_pre_impact_steps(state_traj):
     global_height = state_traj[2]
     height_diff = np.diff(global_height)
-    pre_impact_steps = np.argwhere(np.abs(height_diff) > 1e-6)
+    pre_impact_steps = np.argwhere(np.abs(height_diff) > IMPACT_DETECTION_THRESH)
     return pre_impact_steps
 
 
-def get_next_pre_impact_velocity(pre_impact_velocity, params, timestep, max_sim_time):
-    theta = np.nextafter(params["gamma"] + params["alpha"], -np.inf)
+def get_next_pre_impact_velocity(
+    pre_impact_velocity,
+    params,
+    large_timestep,
+    small_timestep,
+    max_sim_time,
+):
+    alpha, gamma = params["alpha"], params["gamma"]
+    theta = alpha + gamma if pre_impact_velocity >= 0.0 else gamma - alpha
     initial_state = np.array([theta, pre_impact_velocity, 0.0])
-    _, state_traj = simulate(initial_state, params, timestep, max_sim_time)
-    pre_impact_steps = get_pre_impact_steps(state_traj)
-    pre_impact_velocities = state_traj[1, pre_impact_steps].flatten()
-    return pre_impact_velocities[1]
+
+    # We will rewrite the simulation loop here, because we only have to simulate until the next impact
+    time = 0.0
+    state = initial_state
+    impact_counter = 0
+
+    while time < max_sim_time:
+        adaptive_timestep = get_timestep_for_state(
+            state, params, large_timestep, small_timestep
+        )
+        adaptive_timestep = min(adaptive_timestep, max_sim_time - time)
+        next_state = model.discrete_dynamics(
+            state, integrator, adaptive_timestep, params
+        )
+
+        height = state[2]
+        next_height = next_state[2]
+
+        if abs(next_height - height) > IMPACT_DETECTION_THRESH:
+            impact_counter += 1
+            if impact_counter >= 2:
+                break
+
+        state = next_state
+        time += adaptive_timestep
+
+    return state[1]
+
+
+def bisection_method(f, lower, lower_value, upper, upper_value, epsilon=1e-5):
+    previous_value = None
+    while True:
+        middle = (lower + upper) / 2
+        middle_value = f(middle)
+        if previous_value is not None and abs(middle_value - previous_value) < epsilon:
+            return middle
+
+        lower_sign = math.copysign(1.0, lower_value)
+        middle_sign = math.copysign(1.0, middle_value)
+        upper_sign = math.copysign(1.0, upper_value)
+
+        if middle_sign != lower_sign:
+            upper = middle
+            upper_value = middle_value
+        elif middle_sign != upper_sign:
+            lower = middle
+            lower_value = middle_value
+        else:
+            assert False, "what"
+
+        previous_value = middle_value
 
 
 def plot_traj(time_traj, state_traj, params):
