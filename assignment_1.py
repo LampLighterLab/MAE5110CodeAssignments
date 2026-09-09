@@ -1,5 +1,6 @@
 import argparse
 import enum
+from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -7,6 +8,26 @@ from tqdm import tqdm
 
 from integrators import rk4 as integrator
 from models import rimless_wheel as model
+
+
+class Attractor(enum.Enum):
+    ROLLING = 0
+    STABLE = 1
+    UNKNOWN = 2
+
+
+@dataclass
+class AttractorMapResult:
+    attractor_points: dict[Attractor, list[tuple[float, float]]]
+
+
+@dataclass
+class ReturnMapResult:
+    current_velocities: np.ndarray
+    next_velocities: np.ndarray
+    small_fixed_point: float
+    large_fixed_point: float
+    floquet_multiplier: float
 
 
 def main():
@@ -22,16 +43,19 @@ def main():
     timestep = 1e-3
 
     if args.command == "attractors":
-        plot_attractors(params, timestep, sim_time=5.0)
+        result = compute_attractors(params, timestep, sim_time=5.0)
+        plot_attractors(result)
     elif args.command == "trajectory":
         initial_state = np.array([np.deg2rad(10.0), np.deg2rad(0.0), 0.0])
         time_traj, state_traj = simulate(initial_state, params, timestep, sim_time=5.0)
         plot_traj(time_traj, state_traj, params)
     elif args.command == "return":
-        plot_return_map(params, timestep, sim_time=5.0)
+        result = compute_return_map(params, timestep, sim_time=5.0)
+        print_return_map_results(result)
+        plot_return_map(result)
 
 
-def plot_return_map(params, timestep, sim_time):
+def compute_return_map(params, timestep, sim_time) -> ReturnMapResult:
     THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(50.0)
     NUM_SAMPLES = 500  # sample many initial conditions
     FIXED_POINT_THRESHOLD = 0.01
@@ -88,9 +112,29 @@ def plot_return_map(params, timestep, sim_time):
         upper_velocity - lower_velocity
     )
 
+    return ReturnMapResult(
+        current_velocities=current_velocities,
+        next_velocities=next_velocities,
+        small_fixed_point=small_fixed_point,
+        large_fixed_point=large_fixed_point,
+        floquet_multiplier=floquet_multiplier,
+    )
+
+
+def print_return_map_results(result: ReturnMapResult):
+    print(
+        f"Small fixed-point estimate: {np.rad2deg(result.small_fixed_point):.3f} deg/s"
+    )
+    print(
+        f"Large fixed-point estimate: {np.rad2deg(result.large_fixed_point):.3f} deg/s"
+    )
+    print(f"lambda = {result.floquet_multiplier:.6f}")
+
+
+def plot_return_map(result: ReturnMapResult):
     fig, ax = plt.subplots()
-    current_velocities_deg = np.rad2deg(current_velocities)
-    next_velocities_deg = np.rad2deg(next_velocities)
+    current_velocities_deg = np.rad2deg(result.current_velocities)
+    next_velocities_deg = np.rad2deg(result.next_velocities)
     ax.scatter(
         current_velocities_deg,
         next_velocities_deg,
@@ -112,17 +156,8 @@ def plot_return_map(params, timestep, sim_time):
         "k--",
         label="Identity",
     )
-    small_fixed_point_deg = np.rad2deg(small_fixed_point)
-    large_fixed_point_deg = np.rad2deg(large_fixed_point)
-    print(f"Small fixed-point estimate: {small_fixed_point_deg:.3f} deg/s")
-    print(f"Large fixed-point estimate: {large_fixed_point_deg:.3f} deg/s")
-    print(
-        f"Lower perturbed return velocity: {np.rad2deg(lower_next_velocity):.3f} deg/s"
-    )
-    print(
-        f"Upper perturbed return velocity: {np.rad2deg(upper_next_velocity):.3f} deg/s"
-    )
-    print(f"lambda = {floquet_multiplier:.6f}")
+    small_fixed_point_deg = np.rad2deg(result.small_fixed_point)
+    large_fixed_point_deg = np.rad2deg(result.large_fixed_point)
     ax.scatter(
         small_fixed_point_deg,
         small_fixed_point_deg,
@@ -154,16 +189,7 @@ def plot_return_map(params, timestep, sim_time):
     plt.show()
 
 
-def get_next_pre_impact_velocity(pre_impact_velocity, params, timestep, max_sim_time):
-    theta = np.nextafter(params["gamma"] + params["alpha"], -np.inf)
-    initial_state = np.array([theta, pre_impact_velocity, 0.0])
-    _, state_traj = simulate(initial_state, params, timestep, max_sim_time)
-    pre_impact_steps = get_pre_impact_steps(state_traj)
-    pre_impact_velocities = state_traj[1, pre_impact_steps].flatten()
-    return pre_impact_velocities[1]
-
-
-def plot_attractors(params, timestep, sim_time):
+def compute_attractors(params, timestep, sim_time) -> AttractorMapResult:
     THETA_MIN, THETA_MAX = np.deg2rad(-10.0), np.deg2rad(50.0)
     NUM_THETA = 40
     THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-50.0), np.deg2rad(50.0)
@@ -186,6 +212,10 @@ def plot_attractors(params, timestep, sim_time):
             attractor = classify_attractor(state_traj)
             attractor_points[attractor].append((theta, theta_dot))
 
+    return AttractorMapResult(attractor_points=attractor_points)
+
+
+def plot_attractors(result: AttractorMapResult):
     colors = {
         Attractor.ROLLING: "#e63946",
         Attractor.STABLE: "#2a9d8f",
@@ -193,9 +223,9 @@ def plot_attractors(params, timestep, sim_time):
     }
 
     fig, ax = plt.subplots()
-    num_points = sum(len(points) for points in attractor_points.values())
+    num_points = sum(len(points) for points in result.attractor_points.values())
     marker_size = np.clip(5000 / max(num_points, 1), 10, 200)
-    for attractor, points in attractor_points.items():
+    for attractor, points in result.attractor_points.items():
         if points:
             points = np.asarray(points)
             ax.scatter(
@@ -234,12 +264,6 @@ def simulate(initial_state, params, timestep, sim_time):
     return time_traj, state_traj
 
 
-class Attractor(enum.Enum):
-    ROLLING = 0
-    STABLE = 1
-    UNKNOWN = 2
-
-
 def classify_attractor(state_traj) -> Attractor:
     STABLE_THRESH = 1e-4
     ROLLING_THRESH = 0.05
@@ -263,6 +287,15 @@ def get_pre_impact_steps(state_traj):
     height_diff = np.diff(global_height)
     pre_impact_steps = np.argwhere(np.abs(height_diff) > 1e-6)
     return pre_impact_steps
+
+
+def get_next_pre_impact_velocity(pre_impact_velocity, params, timestep, max_sim_time):
+    theta = np.nextafter(params["gamma"] + params["alpha"], -np.inf)
+    initial_state = np.array([theta, pre_impact_velocity, 0.0])
+    _, state_traj = simulate(initial_state, params, timestep, max_sim_time)
+    pre_impact_steps = get_pre_impact_steps(state_traj)
+    pre_impact_velocities = state_traj[1, pre_impact_steps].flatten()
+    return pre_impact_velocities[1]
 
 
 def plot_traj(time_traj, state_traj, params):
