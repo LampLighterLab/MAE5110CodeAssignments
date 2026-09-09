@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.colors import BoundaryNorm, ListedColormap
+from matplotlib.patches import Patch
 from tqdm import tqdm
 
 from integrators import rk4 as integrator
@@ -20,16 +22,17 @@ class Attractor(enum.Enum):
 
 @dataclass
 class AttractorMapResult:
-    attractor_points: dict[Attractor, list[tuple[float, float]]]
+    theta_values: np.ndarray
+    theta_dot_values: np.ndarray
+    attractor_grid: np.ndarray
 
 
 @dataclass
 class ReturnMapResult:
     current_velocities: np.ndarray
     next_velocities: np.ndarray
-    small_fixed_point: float
-    large_fixed_point: float
-    floquet_multiplier: float
+    fixed_points: np.ndarray
+    floquet_multiplier: float | None
 
 
 def main():
@@ -50,7 +53,6 @@ def main():
 
     # Issues
     # TODO: fix attractor map resolution (too low right now, make it look good at high resolutions)
-    # TODO: fix return map fixed point finding, at higher inclination/spokes not getting enough samples near 0
 
     if args.command == "attractors":
         result = compute_attractors(
@@ -94,7 +96,7 @@ def main():
             for future in tqdm(as_completed(futures), total=len(futures)):
                 inclination = futures[future]
                 return_map, attractors = future.result()
-                floquet_multiplier = float(return_map.floquet_multiplier)
+                floquet_multiplier = return_map.floquet_multiplier
                 tqdm.write(f"{inclination=} {floquet_multiplier=}")
 
                 return_fig = plot_return_map(return_map)
@@ -123,7 +125,7 @@ def main():
             for future in tqdm(as_completed(futures), total=len(futures)):
                 spokes = futures[future]
                 return_map, attractors = future.result()
-                floquet_multiplier = float(return_map.floquet_multiplier)
+                floquet_multiplier = return_map.floquet_multiplier
                 tqdm.write(f"{spokes=} {floquet_multiplier=}")
 
                 return_fig = plot_return_map(return_map)
@@ -166,8 +168,8 @@ def compute_return_map(
 ) -> ReturnMapResult:
     # Since we're most interested in collecting theta-dot transitions here,
     # we don't need to sample over theta. We can just start the wheel right before impact.
-    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(200.0)
-    NUM_THETA_DOT = 250
+    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(500.0)
+    NUM_THETA_DOT = 300
 
     FLOQUET_PERTURBATION = np.deg2rad(1.0)
     NUM_FLOQUET_PERTURBATIONS = 5
@@ -229,48 +231,44 @@ def compute_return_map(
         zero_point = bisection_method(f, lower, lower_value, upper, upper_value)
         fixed_points.append(zero_point)
 
-    # fixed_points = (
-    #     current_velocities[after_crossing] + current_velocities[zero_crossings]
-    # ) / 2
+    fixed_points = np.asarray(fixed_points)
+    floquet_multiplier = None
+    if fixed_points.size:
+        large_fixed_point = np.max(fixed_points)
 
-    # We know there should be 2 fixed points, so we'll take min and max.
-    small_fixed_point = min(fixed_points)
-    large_fixed_point = max(fixed_points)
-
-    perturbation_multiples = np.arange(
-        -NUM_FLOQUET_PERTURBATIONS, NUM_FLOQUET_PERTURBATIONS + 1
-    )
-    perturbed_velocities = (
-        large_fixed_point + perturbation_multiples * FLOQUET_PERTURBATION
-    )
-    perturbed_next_velocities = np.array(
-        [
-            get_next_pre_impact_velocity(
-                velocity, params, FLOQUET_DT, FLOQUET_DT, sim_time
-            )
-            for velocity in perturbed_velocities
-        ]
-    )
-    floquet_multiplier = np.polyfit(
-        perturbed_velocities, perturbed_next_velocities, deg=1
-    )[0]
+        perturbation_multiples = np.arange(
+            -NUM_FLOQUET_PERTURBATIONS, NUM_FLOQUET_PERTURBATIONS + 1
+        )
+        perturbed_velocities = (
+            large_fixed_point + perturbation_multiples * FLOQUET_PERTURBATION
+        )
+        perturbed_next_velocities = np.array(
+            [
+                get_next_pre_impact_velocity(
+                    velocity, params, FLOQUET_DT, FLOQUET_DT, sim_time
+                )
+                for velocity in perturbed_velocities
+            ]
+        )
+        floquet_multiplier = np.polyfit(
+            perturbed_velocities, perturbed_next_velocities, deg=1
+        )[0]
 
     return ReturnMapResult(
         current_velocities=current_velocities,
         next_velocities=next_velocities,
-        small_fixed_point=small_fixed_point,
-        large_fixed_point=large_fixed_point,
+        fixed_points=fixed_points,
         floquet_multiplier=floquet_multiplier,
     )
 
 
 def print_return_map_results(result: ReturnMapResult):
-    print(
-        f"Small fixed-point estimate: {np.rad2deg(result.small_fixed_point):.3f} deg/s"
-    )
-    print(
-        f"Large fixed-point estimate: {np.rad2deg(result.large_fixed_point):.3f} deg/s"
-    )
+    if not result.fixed_points.size:
+        print("No fixed points found.")
+        return
+
+    fixed_points_deg = np.rad2deg(result.fixed_points)
+    print(f"Fixed-point estimates: {fixed_points_deg} deg/s")
     print(f"lambda = {result.floquet_multiplier:.6f}")
 
 
@@ -299,28 +297,18 @@ def plot_return_map(result: ReturnMapResult):
         "k--",
         label="Identity",
     )
-    small_fixed_point_deg = np.rad2deg(result.small_fixed_point)
-    large_fixed_point_deg = np.rad2deg(result.large_fixed_point)
-    ax.scatter(
-        small_fixed_point_deg,
-        small_fixed_point_deg,
-        color="#ff9f1c",
-        edgecolor="black",
-        marker="X",
-        s=120,
-        label="Small fixed point",
-        zorder=3,
-    )
-    ax.scatter(
-        large_fixed_point_deg,
-        large_fixed_point_deg,
-        color="#e71d36",
-        edgecolor="black",
-        marker="P",
-        s=120,
-        label="Large fixed point",
-        zorder=3,
-    )
+    if result.fixed_points.size:
+        fixed_points_deg = np.rad2deg(result.fixed_points)
+        ax.scatter(
+            fixed_points_deg,
+            fixed_points_deg,
+            color="#e71d36",
+            edgecolor="black",
+            marker="X",
+            s=120,
+            label="Fixed points",
+            zorder=3,
+        )
     ax.set_xlim(plot_min, plot_max)
     ax.set_ylim(plot_min, plot_max)
     ax.set_title("Rimless Wheel Return Map")
@@ -339,18 +327,22 @@ def compute_attractors(
 
     THETA_MIN, THETA_MAX = gamma - alpha, alpha + gamma
     NUM_THETA = 40
-    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(50.0)
-    NUM_THETA_DOT = 40
+    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(100.0)
+    NUM_THETA_DOT = 80
 
-    attractor_points = {attractor: [] for attractor in Attractor}
+    theta_values = np.linspace(THETA_MIN, THETA_MAX, NUM_THETA)
+    theta_dot_values = np.linspace(THETA_DOT_MIN, THETA_DOT_MAX, NUM_THETA_DOT)
+    attractor_grid = np.empty((NUM_THETA_DOT, NUM_THETA), dtype=int)
 
-    for theta in tqdm(
-        np.linspace(THETA_MIN, THETA_MAX, NUM_THETA),
+    for theta_idx, theta in tqdm(
+        enumerate(theta_values),
+        total=NUM_THETA,
         leave=False,
         disable=not show_progress,
     ):
-        for theta_dot in tqdm(
-            np.linspace(THETA_DOT_MIN, THETA_DOT_MAX, NUM_THETA_DOT),
+        for theta_dot_idx, theta_dot in tqdm(
+            enumerate(theta_dot_values),
+            total=NUM_THETA_DOT,
             leave=False,
             disable=not show_progress,
         ):
@@ -359,9 +351,13 @@ def compute_attractors(
                 initial_state, params, large_timestep, small_timestep, sim_time
             )
             attractor = classify_attractor(state_traj)
-            attractor_points[attractor].append((theta, theta_dot))
+            attractor_grid[theta_dot_idx, theta_idx] = attractor.value
 
-    return AttractorMapResult(attractor_points=attractor_points)
+    return AttractorMapResult(
+        theta_values=theta_values,
+        theta_dot_values=theta_dot_values,
+        attractor_grid=attractor_grid,
+    )
 
 
 def plot_attractors(result: AttractorMapResult):
@@ -372,24 +368,33 @@ def plot_attractors(result: AttractorMapResult):
     }
 
     fig, ax = plt.subplots()
-    num_points = sum(len(points) for points in result.attractor_points.values())
-    marker_size = np.clip(5000 / max(num_points, 1), 10, 200)
-    for attractor, points in result.attractor_points.items():
-        if points:
-            points = np.asarray(points)
-            ax.scatter(
-                np.rad2deg(points[:, 0]),
-                np.rad2deg(points[:, 1]),
-                color=colors[attractor],
-                label=attractor.name.title(),
-                s=marker_size,
-            )
+    color_map = ListedColormap([colors[attractor] for attractor in Attractor])
+    color_norm = BoundaryNorm(np.arange(len(Attractor) + 1) - 0.5, color_map.N)
+    ax.pcolormesh(
+        np.rad2deg(result.theta_values),
+        np.rad2deg(result.theta_dot_values),
+        result.attractor_grid,
+        cmap=color_map,
+        norm=color_norm,
+        shading="nearest",
+    )
+
+    legend_handles = [
+        Patch(color=colors[attractor], label=attractor.name.title())
+        for attractor in Attractor
+        if np.any(result.attractor_grid == attractor.value)
+    ]
+    ax.legend(
+        handles=legend_handles,
+        title="Attractor",
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+    )
 
     ax.set_title("Rimless Wheel Attractors")
     ax.set_xlabel(r"Initial angle $\theta$ (deg)")
     ax.set_ylabel(r"Initial angular velocity $\dot{\theta}$ (deg/s)")
     ax.grid(alpha=0.25)
-    # ax.legend(title="Attractor")
     fig.tight_layout()
     return fig
 
