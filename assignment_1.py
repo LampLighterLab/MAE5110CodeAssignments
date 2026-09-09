@@ -35,6 +35,7 @@ def plot_return_map(params, timestep, sim_time):
     THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(50.0)
     NUM_SAMPLES = 500  # sample many initial conditions
     FIXED_POINT_THRESHOLD = 0.01
+    FLOQUET_PERTURBATION = np.deg2rad(1.0)
 
     rng = np.random.default_rng(0)
     current_velocities = []
@@ -75,6 +76,18 @@ def plot_return_map(params, timestep, sim_time):
     small_fixed_point = np.mean(fixed_points[fixed_points < avg_fixed_point])
     large_fixed_point = np.mean(fixed_points[fixed_points >= avg_fixed_point])
 
+    lower_velocity = large_fixed_point - FLOQUET_PERTURBATION
+    upper_velocity = large_fixed_point + FLOQUET_PERTURBATION
+    lower_next_velocity = get_next_pre_impact_velocity(
+        lower_velocity, params, timestep, sim_time
+    )
+    upper_next_velocity = get_next_pre_impact_velocity(
+        upper_velocity, params, timestep, sim_time
+    )
+    floquet_multiplier = (upper_next_velocity - lower_next_velocity) / (
+        upper_velocity - lower_velocity
+    )
+
     fig, ax = plt.subplots()
     current_velocities_deg = np.rad2deg(current_velocities)
     next_velocities_deg = np.rad2deg(next_velocities)
@@ -103,6 +116,13 @@ def plot_return_map(params, timestep, sim_time):
     large_fixed_point_deg = np.rad2deg(large_fixed_point)
     print(f"Small fixed-point estimate: {small_fixed_point_deg:.3f} deg/s")
     print(f"Large fixed-point estimate: {large_fixed_point_deg:.3f} deg/s")
+    print(
+        f"Lower perturbed return velocity: {np.rad2deg(lower_next_velocity):.3f} deg/s"
+    )
+    print(
+        f"Upper perturbed return velocity: {np.rad2deg(upper_next_velocity):.3f} deg/s"
+    )
+    print(f"lambda = {floquet_multiplier:.6f}")
     ax.scatter(
         small_fixed_point_deg,
         small_fixed_point_deg,
@@ -132,6 +152,15 @@ def plot_return_map(params, timestep, sim_time):
     ax.legend()
     fig.tight_layout()
     plt.show()
+
+
+def get_next_pre_impact_velocity(pre_impact_velocity, params, timestep, max_sim_time):
+    theta = np.nextafter(params["gamma"] + params["alpha"], -np.inf)
+    initial_state = np.array([theta, pre_impact_velocity, 0.0])
+    _, state_traj = simulate(initial_state, params, timestep, max_sim_time)
+    pre_impact_steps = get_pre_impact_steps(state_traj)
+    pre_impact_velocities = state_traj[1, pre_impact_steps].flatten()
+    return pre_impact_velocities[1]
 
 
 def plot_attractors(params, timestep, sim_time):
