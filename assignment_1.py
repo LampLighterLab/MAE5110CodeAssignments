@@ -1,5 +1,6 @@
 import argparse
 import enum
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 
 import matplotlib.pyplot as plt
@@ -35,27 +36,109 @@ def main():
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("attractors", help="plot the attractor map")
     subparsers.add_parser("trajectory", help="plot a single simulation")
-    subparsers.add_parser("return", help="plot a single simulation")
+    subparsers.add_parser("return", help="plot the return map")
+    subparsers.add_parser(
+        "sweep-inclinations", help="sweep inclinations and save plots"
+    )
+    subparsers.add_parser("sweep-spokes", help="sweep spoke count and save plots")
     args = parser.parse_args()
 
     params = model.generate_params()
 
     timestep = 1e-3
 
+    # Issues
+    # TODO: fix attractor map resolution (too low right now, make it look good at high resolutions)
+    # TODO: fix return map fixed point finding, at higher inclination/spokes not getting enough samples near 0
+
     if args.command == "attractors":
         result = compute_attractors(params, timestep, sim_time=5.0)
         plot_attractors(result)
+        plt.show()
     elif args.command == "trajectory":
         initial_state = np.array([np.deg2rad(10.0), np.deg2rad(0.0), 0.0])
         time_traj, state_traj = simulate(initial_state, params, timestep, sim_time=5.0)
         plot_traj(time_traj, state_traj, params)
+        plt.show()
     elif args.command == "return":
         result = compute_return_map(params, timestep, sim_time=5.0)
         print_return_map_results(result)
         plot_return_map(result)
+        plt.show()
+    elif args.command == "sweep-inclinations":
+        inclinations = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0]
+        with ProcessPoolExecutor() as executor:
+            futures = {
+                executor.submit(
+                    compute_sweep_case,
+                    params,
+                    "gamma",
+                    np.deg2rad(inclination),
+                    timestep,
+                    7.0,
+                ): inclination
+                for inclination in inclinations
+            }
+            for future in tqdm(as_completed(futures), total=len(futures)):
+                inclination = futures[future]
+                return_map, attractors = future.result()
+                floquet_multiplier = float(return_map.floquet_multiplier)
+                tqdm.write(f"{inclination=} {floquet_multiplier=}")
+
+                return_fig = plot_return_map(return_map)
+                return_fig.savefig(f"results/inclination_{int(inclination)}_return.png")
+                plt.close(return_fig)
+                attractor_fig = plot_attractors(attractors)
+                attractor_fig.savefig(
+                    f"results/inclination_{int(inclination)}_attractors.png"
+                )
+                plt.close(attractor_fig)
+    elif args.command == "sweep-spokes":
+        spoke_counts = [6, 7, 8, 9, 10, 11, 12]
+        with ProcessPoolExecutor() as executor:
+            futures = {
+                executor.submit(
+                    compute_sweep_case,
+                    params,
+                    "alpha",
+                    np.deg2rad(360.0 / spokes) / 2.0,
+                    timestep,
+                    7.0,
+                ): spokes
+                for spokes in spoke_counts
+            }
+            for future in tqdm(as_completed(futures), total=len(futures)):
+                spokes = futures[future]
+                return_map, attractors = future.result()
+                floquet_multiplier = float(return_map.floquet_multiplier)
+                tqdm.write(f"{spokes=} {floquet_multiplier=}")
+
+                return_fig = plot_return_map(return_map)
+                return_fig.savefig(f"results/spokes_{spokes}_return.png")
+                plt.close(return_fig)
+                attractor_fig = plot_attractors(attractors)
+                attractor_fig.savefig(f"results/spokes_{spokes}_attractors.png")
+                plt.close(attractor_fig)
 
 
-def compute_return_map(params, timestep, sim_time) -> ReturnMapResult:
+def compute_sweep_case(params, parameter_name, parameter_value, timestep, sim_time):
+    sweep_params = params.copy()
+    sweep_params[parameter_name] = parameter_value
+    return_map = compute_return_map(
+        sweep_params, timestep, sim_time, show_progress=False
+    )
+    attractors = compute_attractors(
+        sweep_params, timestep, sim_time, show_progress=False
+    )
+    return return_map, attractors
+
+
+def compute_return_map(
+    params, timestep, sim_time, show_progress=True
+) -> ReturnMapResult:
+    # Since we're most interested in collecting theta-dot transitions here,
+    # I don't sample over theta. I observed no noticable difference in the
+    # output plot.
     THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(50.0)
     NUM_SAMPLES = 500  # sample many initial conditions
     FIXED_POINT_THRESHOLD = 0.01
@@ -66,7 +149,7 @@ def compute_return_map(params, timestep, sim_time) -> ReturnMapResult:
     next_velocities = []
     alpha, gamma = params["alpha"], params["gamma"]
 
-    progress = tqdm(total=NUM_SAMPLES)
+    progress = tqdm(total=NUM_SAMPLES, leave=False, disable=not show_progress)
     sample_number = 0
     while sample_number < NUM_SAMPLES:
         theta = params["gamma"]
@@ -186,28 +269,35 @@ def plot_return_map(result: ReturnMapResult):
     ax.grid(alpha=0.25)
     ax.legend()
     fig.tight_layout()
-    plt.show()
+    return fig
 
 
-def compute_attractors(params, timestep, sim_time) -> AttractorMapResult:
-    THETA_MIN, THETA_MAX = np.deg2rad(-10.0), np.deg2rad(50.0)
+def compute_attractors(
+    params, timestep, sim_time, show_progress=True
+) -> AttractorMapResult:
+    alpha, gamma = params["alpha"], params["gamma"]
+
+    THETA_MIN, THETA_MAX = (
+        np.nextafter(gamma - alpha, np.inf),
+        np.nextafter(alpha + gamma, -np.inf),
+    )
     NUM_THETA = 40
-    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-50.0), np.deg2rad(50.0)
+    THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(50.0)
     NUM_THETA_DOT = 40
 
     attractor_points = {attractor: [] for attractor in Attractor}
 
-    alpha, gamma = params["alpha"], params["gamma"]
-
-    for theta in tqdm(np.linspace(THETA_MIN, THETA_MAX, NUM_THETA)):
+    for theta in tqdm(
+        np.linspace(THETA_MIN, THETA_MAX, NUM_THETA),
+        leave=False,
+        disable=not show_progress,
+    ):
         for theta_dot in tqdm(
-            np.linspace(THETA_DOT_MIN, THETA_DOT_MAX, NUM_THETA_DOT), leave=False
+            np.linspace(THETA_DOT_MIN, THETA_DOT_MAX, NUM_THETA_DOT),
+            leave=False,
+            disable=not show_progress,
         ):
             initial_state = np.array([theta, theta_dot, 0.0])
-
-            if theta < (gamma - alpha) or (alpha + gamma) < theta:
-                continue
-
             _, state_traj = simulate(initial_state, params, timestep, sim_time)
             attractor = classify_attractor(state_traj)
             attractor_points[attractor].append((theta, theta_dot))
@@ -240,9 +330,9 @@ def plot_attractors(result: AttractorMapResult):
     ax.set_xlabel(r"Initial angle $\theta$ (deg)")
     ax.set_ylabel(r"Initial angular velocity $\dot{\theta}$ (deg/s)")
     ax.grid(alpha=0.25)
-    ax.legend(title="Attractor")
+    # ax.legend(title="Attractor")
     fig.tight_layout()
-    plt.show()
+    return fig
 
 
 def simulate(initial_state, params, timestep, sim_time):
@@ -320,7 +410,7 @@ def plot_traj(time_traj, state_traj, params):
     ax3.set_ylabel("Energy")
 
     fig.legend()
-    plt.show()
+    return fig
 
 
 if __name__ == "__main__":
