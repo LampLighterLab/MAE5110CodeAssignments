@@ -32,9 +32,9 @@ def main():
 
 
 def plot_return_map(params, timestep, sim_time):
-    THETA_MIN, THETA_MAX = np.deg2rad(-50.0), np.deg2rad(50.0)
     THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(50.0)
     NUM_SAMPLES = 500  # sample many initial conditions
+    FIXED_POINT_THRESHOLD = 0.01
 
     rng = np.random.default_rng(0)
     current_velocities = []
@@ -44,7 +44,7 @@ def plot_return_map(params, timestep, sim_time):
     progress = tqdm(total=NUM_SAMPLES)
     sample_number = 0
     while sample_number < NUM_SAMPLES:
-        theta = rng.uniform(THETA_MIN, THETA_MAX)
+        theta = params["gamma"]
         theta_dot = rng.uniform(THETA_DOT_MIN, THETA_DOT_MAX)
 
         if theta <= (gamma - alpha) or (alpha + gamma) <= theta:
@@ -62,22 +62,32 @@ def plot_return_map(params, timestep, sim_time):
 
     progress.close()
 
-    fig, ax = plt.subplots()
-    if current_velocities:
-        current_velocities_deg = np.rad2deg(current_velocities)
-        next_velocities_deg = np.rad2deg(next_velocities)
-        ax.scatter(
-            current_velocities_deg,
-            next_velocities_deg,
-            color="#3a86ff",
-            s=20,
-            alpha=0.75,
-        )
+    current_velocities = np.array(current_velocities)
+    next_velocities = np.array(next_velocities)
 
-        velocity_min = min(min(current_velocities_deg), min(next_velocities_deg))
-        velocity_max = max(max(current_velocities_deg), max(next_velocities_deg))
-    else:
-        velocity_min, velocity_max = np.rad2deg([THETA_DOT_MIN, THETA_DOT_MAX])
+    fixed_point_idx = np.argwhere(
+        np.abs(next_velocities - current_velocities) < FIXED_POINT_THRESHOLD
+    )
+    fixed_points = current_velocities[fixed_point_idx]
+
+    # We know there will be 2 fixed points, so we'll divide the set we found in two and average
+    avg_fixed_point = np.mean(fixed_points)
+    small_fixed_point = np.mean(fixed_points[fixed_points < avg_fixed_point])
+    large_fixed_point = np.mean(fixed_points[fixed_points >= avg_fixed_point])
+
+    fig, ax = plt.subplots()
+    current_velocities_deg = np.rad2deg(current_velocities)
+    next_velocities_deg = np.rad2deg(next_velocities)
+    ax.scatter(
+        current_velocities_deg,
+        next_velocities_deg,
+        color="#3a86ff",
+        s=20,
+        alpha=0.75,
+    )
+
+    velocity_min = min(min(current_velocities_deg), min(next_velocities_deg))
+    velocity_max = max(max(current_velocities_deg), max(next_velocities_deg))
 
     velocity_padding = 0.05 * (velocity_max - velocity_min)
     plot_min = velocity_min - velocity_padding
@@ -88,6 +98,30 @@ def plot_return_map(params, timestep, sim_time):
         [plot_min, plot_max],
         "k--",
         label="Identity",
+    )
+    small_fixed_point_deg = np.rad2deg(small_fixed_point)
+    large_fixed_point_deg = np.rad2deg(large_fixed_point)
+    print(f"Small fixed-point estimate: {small_fixed_point_deg:.3f} deg/s")
+    print(f"Large fixed-point estimate: {large_fixed_point_deg:.3f} deg/s")
+    ax.scatter(
+        small_fixed_point_deg,
+        small_fixed_point_deg,
+        color="#ff9f1c",
+        edgecolor="black",
+        marker="X",
+        s=120,
+        label="Small fixed point",
+        zorder=3,
+    )
+    ax.scatter(
+        large_fixed_point_deg,
+        large_fixed_point_deg,
+        color="#e71d36",
+        edgecolor="black",
+        marker="P",
+        s=120,
+        label="Large fixed point",
+        zorder=3,
     )
     ax.set_xlim(plot_min, plot_max)
     ax.set_ylim(plot_min, plot_max)
