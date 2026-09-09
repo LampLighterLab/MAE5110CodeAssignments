@@ -12,7 +12,9 @@ class IntegratorEuler(IntegratorBase):
             state_trajectory[:, step + 1] = state_trajectory[:, step] + timestep * model.dynamics(
                 t, state_trajectory[:, step], param_model
             )
-            
+
+            state_trajectory[:, step + 1] = model.discrete_jump(state_trajectory[:, step + 1], param_model)
+
             if checkpoint_callback:
                 checkpoint_callback(t, state_trajectory[:, step], t + timestep, state_trajectory[:, step + 1], model)
         return state_trajectory
