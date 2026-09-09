@@ -50,7 +50,7 @@ def generate_params():
         "gravity": 9.81,  # gravity m/s^2)
         "length": 1,  # rod length (m)
         "mass": 1,  # point mass at end of rod (kg)
-        "alpha": np.deg2rad(360.0 / 6) / 2.0,
+        "alpha": np.deg2rad(360.0 / 12) / 2.0,
         "gamma": np.deg2rad(20.0),
     }
     return params

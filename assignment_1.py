@@ -32,7 +32,7 @@ class ReturnMapResult:
     current_velocities: np.ndarray
     next_velocities: np.ndarray
     fixed_points: np.ndarray
-    floquet_multiplier: float | None
+    floquet_multipliers: np.ndarray
 
 
 def main():
@@ -51,9 +51,6 @@ def main():
     large_timestep = 1e-2
     small_timestep = 1e-3
 
-    # Issues
-    # TODO: fix attractor map resolution (too low right now, make it look good at high resolutions)
-
     if args.command == "attractors":
         result = compute_attractors(
             params, large_timestep, small_timestep, sim_time=5.0
@@ -61,7 +58,7 @@ def main():
         plot_attractors(result)
         plt.show()
     elif args.command == "trajectory":
-        initial_state = np.array([np.deg2rad(10.0), np.deg2rad(-500.0), 0.0])
+        initial_state = np.array([np.deg2rad(20.0), np.deg2rad(1.0), 0.0])
         time_traj, state_traj = simulate(
             initial_state,
             params,
@@ -79,7 +76,7 @@ def main():
         plot_return_map(result)
         plt.show()
     elif args.command == "sweep-inclinations":
-        inclinations = [10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0]
+        inclinations = [15.0, 25.0, 35.0, 45.0, 55.0]
         with ProcessPoolExecutor() as executor:
             futures = {
                 executor.submit(
@@ -96,8 +93,8 @@ def main():
             for future in tqdm(as_completed(futures), total=len(futures)):
                 inclination = futures[future]
                 return_map, attractors = future.result()
-                floquet_multiplier = return_map.floquet_multiplier
-                tqdm.write(f"{inclination=} {floquet_multiplier=}")
+                floquet_multipliers = return_map.floquet_multipliers
+                tqdm.write(f"{inclination=} {floquet_multipliers=}")
 
                 return_fig = plot_return_map(return_map)
                 return_fig.savefig(f"results/inclination_{int(inclination)}_return.png")
@@ -125,8 +122,8 @@ def main():
             for future in tqdm(as_completed(futures), total=len(futures)):
                 spokes = futures[future]
                 return_map, attractors = future.result()
-                floquet_multiplier = return_map.floquet_multiplier
-                tqdm.write(f"{spokes=} {floquet_multiplier=}")
+                floquet_multipliers = return_map.floquet_multipliers
+                tqdm.write(f"{spokes=} {floquet_multipliers=}")
 
                 return_fig = plot_return_map(return_map)
                 return_fig.savefig(f"results/spokes_{spokes}_return.png")
@@ -232,15 +229,13 @@ def compute_return_map(
         fixed_points.append(zero_point)
 
     fixed_points = np.asarray(fixed_points)
-    floquet_multiplier = None
-    if fixed_points.size:
-        large_fixed_point = np.max(fixed_points)
-
-        perturbation_multiples = np.arange(
-            -NUM_FLOQUET_PERTURBATIONS, NUM_FLOQUET_PERTURBATIONS + 1
-        )
+    perturbation_multiples = np.arange(
+        -NUM_FLOQUET_PERTURBATIONS, NUM_FLOQUET_PERTURBATIONS + 1
+    )
+    floquet_multipliers = []
+    for fixed_point in fixed_points:
         perturbed_velocities = (
-            large_fixed_point + perturbation_multiples * FLOQUET_PERTURBATION
+            fixed_point + perturbation_multiples * FLOQUET_PERTURBATION
         )
         perturbed_next_velocities = np.array(
             [
@@ -250,15 +245,15 @@ def compute_return_map(
                 for velocity in perturbed_velocities
             ]
         )
-        floquet_multiplier = np.polyfit(
-            perturbed_velocities, perturbed_next_velocities, deg=1
-        )[0]
+        floquet_multipliers.append(
+            np.polyfit(perturbed_velocities, perturbed_next_velocities, deg=1)[0]
+        )
 
     return ReturnMapResult(
         current_velocities=current_velocities,
         next_velocities=next_velocities,
         fixed_points=fixed_points,
-        floquet_multiplier=floquet_multiplier,
+        floquet_multipliers=np.asarray(floquet_multipliers),
     )
 
 
@@ -269,7 +264,7 @@ def print_return_map_results(result: ReturnMapResult):
 
     fixed_points_deg = np.rad2deg(result.fixed_points)
     print(f"Fixed-point estimates: {fixed_points_deg} deg/s")
-    print(f"lambda = {result.floquet_multiplier:.6f}")
+    print(f"Floquet multipliers: {result.floquet_multipliers}")
 
 
 def plot_return_map(result: ReturnMapResult):
@@ -328,7 +323,7 @@ def compute_attractors(
     THETA_MIN, THETA_MAX = gamma - alpha, alpha + gamma
     NUM_THETA = 40
     THETA_DOT_MIN, THETA_DOT_MAX = np.deg2rad(-500.0), np.deg2rad(100.0)
-    NUM_THETA_DOT = 80
+    NUM_THETA_DOT = 400
 
     theta_values = np.linspace(THETA_MIN, THETA_MAX, NUM_THETA)
     theta_dot_values = np.linspace(THETA_DOT_MIN, THETA_DOT_MAX, NUM_THETA_DOT)
