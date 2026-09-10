@@ -8,7 +8,10 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+import argparse
 import logging
+import shutil
+import yaml
 logging.basicConfig(level=logging.INFO, format="[%(asctime)s][%(funcName)s] %(levelname)s %(name)s: %(message)s", datefmt="%H:%M:%S")
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -37,9 +40,9 @@ def detect_impact(state1, state2, params):
     theta2 = float(state2[0])
     dtheta = theta2 - theta1
 
-    if theta_dot1 > 0.0 and dtheta < -alpha and theta1 < guard_forward:
+    if dtheta < -alpha and theta1 <= guard_forward and theta2 >= guard_backward:
         return "forward"
-    if theta_dot1 < 0.0 and dtheta > alpha and theta1 > guard_backward:
+    if dtheta > alpha and theta1 >= guard_backward and theta2 <= guard_forward:
         return "backward"
 
     # Health check: crossed a guard location with no teleport. With the
@@ -72,6 +75,9 @@ def plot_sim(final_time: float, sampling_period: float, state_0: np.ndarray, int
     model.set_params(model_params)
 
     # 3. Run the simulation
+    def impact_event_guard(t1, state1, t2, state2, model):
+        impact_type = detect_impact(state1, state2, model.get_params())
+        
     t0 = 0.0
     time_trajectory = np.arange(t0, final_time, sampling_period)
     state_trajectory = integrator.integrate(
@@ -81,6 +87,7 @@ def plot_sim(final_time: float, sampling_period: float, state_0: np.ndarray, int
         initial_state=state_0,
         model=model,
         checkpoint_callback=None # impact_event_guard
+        # checkpoint_callback=impact_event_guard
     )
 
     # 4. Sanity check: the energy should be constant
@@ -118,11 +125,11 @@ def plot_sim(final_time: float, sampling_period: float, state_0: np.ndarray, int
     #   4.3. Show the plots
     plt.tight_layout()
     if fig_dir != "":
-        plt.savefig(fig_dir + "/rimless_wheel_simulation.png")
+        plt.savefig(str(Path(fig_dir) / "rimless_wheel_simulation.png"))
     else:
         plt.show()
 
-def analysis(sampling_period: float, integrator_params: dict, model_params: dict, if_RoA_analysis: bool = True, fig_dir: str = ""):
+def analysis(sampling_period: float, integrator_params: dict, model_params: dict, if_RoA_analysis: bool = True, fig_dir: str = "", if_plot: bool = True):
     # 1. Create models and integrators
     model = model_rimless_wheel.ModelRimlessWheel()
     integrator = integrator_rk4.IntegratorRK4()
@@ -184,11 +191,12 @@ def analysis(sampling_period: float, integrator_params: dict, model_params: dict
                 else:
                     last_forward_theta_dots[i, j] = np.nan # no forward transition event occurred
 
+                # logger.info(f"{last_forward_theta_dots[i, j]:.4f} ")
+
                 j += 1
 
             i += 1
         # 3.3. Cluster last forward theta dot using dbscan
-        from sklearn.cluster import DBSCAN
         # Reshape the data for clustering
         X = last_forward_theta_dots.flatten().reshape(-1, 1)
         initial_states = np.array([[theta, theta_dot] for theta in theta_grid for theta_dot in theta_dot_grid])
@@ -196,14 +204,23 @@ def analysis(sampling_period: float, integrator_params: dict, model_params: dict
         valid_indices = ~np.isnan(X.flatten())
         X_valid = X[valid_indices]
         initial_states_valid = initial_states[valid_indices.flatten()]
-        # Perform DBSCAN clustering
-        dbscan = DBSCAN(eps=0.1, min_samples=2)
-        clusters = dbscan.fit_predict(X_valid)
+        clusters = None
+        if False:
+            # Perform DBSCAN clustering
+            from sklearn.cluster import DBSCAN
+            dbscan = DBSCAN(eps=0.1, min_samples=2)
+            clusters = dbscan.fit_predict(X_valid)
+        else:
+            # two category: very close to 0, or not
+            threshold = 0.01
+            clusters = np.where(np.abs(X_valid.flatten()) < threshold, 0, 1)
         # 3.4. Plot the clusters with a discrete colorbar (one tick per cluster label)
         import matplotlib as mpl
         unique_labels = np.unique(clusters)
         num_labels = len(unique_labels)
-        cmap = plt.get_cmap('viridis', num_labels)  # discrete LUT, not a continuous map
+        cmap = mpl.colors.ListedColormap(  # type: ignore
+            [{-1: "gray", 0: "purple", 1: "yellow"}.get(int(lab), "cyan") for lab in unique_labels]
+        )  # fixed color per label: 0 purple, 1 yellow, noise gray
         lut_index = np.searchsorted(unique_labels, clusters)  # raw label -> 0..num_labels-1
         norm = mpl.colors.BoundaryNorm(np.arange(num_labels + 1) - 0.5, num_labels)  # type: ignore
         padx = 0.1
@@ -220,8 +237,10 @@ def analysis(sampling_period: float, integrator_params: dict, model_params: dict
         plt.ylim(theta_dot_min - pady, theta_dot_max + pady)
         plt.grid()
         plt.tight_layout()
-        if fig_dir != "":
-            plt.savefig(fig_dir + "/rimless_wheel_RoA_analysis.png")
+        if not if_plot:
+            plt.close("all")
+        elif fig_dir != "":
+            plt.savefig(str(Path(fig_dir) / "rimless_wheel_RoA_analysis.png"))
         else:
             plt.show()
 
@@ -229,7 +248,7 @@ def analysis(sampling_period: float, integrator_params: dict, model_params: dict
     # 4.1. Purturb the analytical fix point and see if it converges back to the fix point
     theta_perturb = 0.0
     theta_dot_perturb = 2.0
-    dt = 1e-2
+    dt = sampling_period
     state_perturbed = np.array([state_fix_point[0] + theta_perturb, state_fix_point[1] + theta_dot_perturb])
     time_trajectory = np.arange(t0, tf, dt)
     # 4.2. lambda callback recording forward transition theta dot jump
@@ -273,42 +292,155 @@ def analysis(sampling_period: float, integrator_params: dict, model_params: dict
     plt.grid()
     plt.tight_layout()
 
+    if not if_plot:
+        plt.close("all")
+    elif fig_dir != "":
+        plt.savefig(str(Path(fig_dir) / "rimless_wheel_theta_dot_jump_map.png"))
+    else:
+        plt.show()
+
     # 5. Floquent multipliers
     # compute (post - analytical_fix_point) / (pre - analytical_fix_point) for each jump and print the ratio
     ratios = abs(theta_dot_jumps_np[:, 1] - state_fix_point[1]) / abs(theta_dot_jumps_np[:, 0] - state_fix_point[1])
     for i, ratio in enumerate(ratios):
-        print(f"Jump {i}: {ratio:.2f}")
+        logger.info(f"Jump {i}: {ratio:.2f}")
 
-    if fig_dir != "":
-        plt.savefig(fig_dir + "/rimless_wheel_theta_dot_jump_map.png")
+    plt.figure(figsize=(8, 6))
+    plt.plot(range(len(ratios)), ratios, marker='o', label='Floquet Multipliers')
+    plt.axhline(y=1.0, color='r', linestyle='--', label='y=1 line')
+    plt.title('Floquet Multipliers at Forward Transition')
+    plt.xlabel('Jump Index')
+    plt.ylabel('Floquet Multiplier')
+    plt.ylim(0, max(1.5, np.max(ratios) + 0.1))
+    plt.legend()
+    plt.tight_layout()
+    if not if_plot:
+        plt.close("all")
+    elif fig_dir != "":
+        plt.savefig(str(Path(fig_dir) / "rimless_wheel_floquet_multipliers.png"))
     else:
         plt.show()
 
-def main():
-    model = model_rimless_wheel.ModelRimlessWheel()
-    model_params = model.generate_params()
-    gamma = model_params["gamma"]
-    alpha = model_params["alpha"]
-    g = model_params["g"]
-    length = model_params["length"]
-    # 1. energy test with initial condition at the analytical fix point
-    state_fix_point = analytical_fix_point(gamma=gamma, alpha=alpha, g=g, length=length)
-    plot_sim(state_0=state_fix_point, params=model_params, if_energy_test=True, if_plot=False)
+def load_config(path: str | Path | None) -> dict:
+    """Load and normalize the minimal YAML config (floats only, no expression parsing)."""
+    if path is None:
+        path = Path(__file__).with_name("assignment_1.yaml")
+    with open(path, "r") as f:
+        raw = yaml.safe_load(f) or {}
+    mode = raw.get("mode", "plot_sim")
+    if mode not in ("sanity_check", "plot_sim", "analysis"):
+        raise ValueError(f"Unknown mode {mode!r}: expected one of sanity_check, plot_sim, analysis.")
 
-    # 2. plot the under speed test
-    # state_under_speed = np.array([gamma + alpha , 0.01 * state_fix_point[1]])
-    # plot_sim(state_0=state_under_speed, params=model_params, if_energy_test=False, if_plot=True)
+    # simulation parameters
+    sampling_period = float(raw.get("sampling_period", 0.01))
+    final_time = float(raw.get("final_time", 5.0))
+    if sampling_period <= 0:
+        raise ValueError(f"sampling_period must be positive, got {sampling_period}.")
+    if final_time <= sampling_period:
+        raise ValueError(f"final_time ({final_time}) must exceed sampling_period ({sampling_period}).")
+    
+    config_dict = {
+        "mode": mode,
+        "integrator_params": dict(raw.get("integrator_params", {}) or {}),
+        "model_params": dict(raw.get("model_params", {}) or {}),
+        "sampling_period": sampling_period,
+        "final_time": final_time,
+        "fig_dir": str(raw.get("fig_dir", "") or ""),
+        "if_plot": bool(raw.get("if_plot", True)),
+        "if_RoA_analysis": bool(raw.get("if_RoA_analysis", True)),
+    }
 
-    # 3. analysis
-    # analysis(gamma=gamma, num_spokes=6)
-    # analysis(gamma=gamma*2, num_spokes=4)
+    # remedy the model params
+    if "num_spokes" in config_dict["model_params"]:
+        num_spokes = int(config_dict["model_params"]["num_spokes"])
+        if num_spokes <= 0:
+            raise ValueError(f"num_spokes must be positive, got {num_spokes}.")
+        config_dict["model_params"]["alpha"] = np.pi / num_spokes
+    if "gamma_multiplier" in config_dict["model_params"]:
+        gamma_multiplier = float(config_dict["model_params"]["gamma_multiplier"])
+        if gamma_multiplier <= 0:
+            raise ValueError(f"gamma_multiplier must be positive, got {gamma_multiplier}.")
+        config_dict["model_params"]["gamma"] = np.pi / 2 * gamma_multiplier
 
-    # perturbation state plot
-    model_params["gamma"] = np.pi / 10
-    model_params["alpha"] = np.pi / 8
-    state_fix_point = analytical_fix_point(gamma=model_params["gamma"], alpha=model_params["alpha"], g=g, length=length)
-    state_perturbed = np.array([state_fix_point[0] , 0.1 * state_fix_point[1]])
-    plot_sim(state_0=state_perturbed, params=model_params, if_energy_test=False, if_plot=True)
+    # remedy the state_0
+    state_0 = raw.get("state_0", [0.0, 0.0])
+    if len(state_0) != 2:
+        raise ValueError(f"state_0 must have length 2, got {state_0!r}.")
+    if raw.get("theta_dot_fixpoint_multiplier") is not None:
+        theta_dot_fixpoint_multiplier = float(raw["theta_dot_fixpoint_multiplier"])
+        state_fix_point = analytical_fix_point(
+            gamma=config_dict["model_params"]["gamma"],
+            alpha=config_dict["model_params"]["alpha"],
+            g=config_dict["model_params"]["g"],
+            length=config_dict["model_params"]["length"]
+        )
+        state_0[1] = state_fix_point[1] * theta_dot_fixpoint_multiplier
+    config_dict["state_0"] = [float(state_0[0]), float(state_0[1])]
+
+    return config_dict
+
+def ensure_fig_dir(fig_dir: str) -> None:
+    """Create fig_dir (mkdir -p); no-op on empty string."""
+    if fig_dir == "":
+        return
+    Path(fig_dir).mkdir(parents=True, exist_ok=True)
+
+def main(config_path: str | Path | None = None):
+    default_path = Path(__file__).with_name("assignment_1.yaml")
+    if config_path is None:
+        parser = argparse.ArgumentParser(description="Rimless-wheel runner (YAML-driven).")
+        parser.add_argument("--config", default=str(default_path))
+        config_path = parser.parse_args().config
+    cfg = load_config(config_path)
+    logger.info(f"mode={cfg['mode']} config={config_path}")
+
+    # Preprocess output folder whenever a save path is configured.
+    ensure_fig_dir(cfg["fig_dir"])
+
+    if cfg["mode"] == "sanity_check":
+        # Energy check from the analytical fix point; print only, no PNG.
+        for key in ("gamma", "alpha", "g", "length"):
+            if key not in cfg["model_params"]:
+                raise ValueError(f"model_params missing {key!r} required for sanity_check.")
+        mp = cfg["model_params"]
+        fix = analytical_fix_point(gamma=mp["gamma"], alpha=mp["alpha"], g=mp["g"], length=mp["length"])
+        plot_sim(
+            final_time=cfg["final_time"],
+            sampling_period=cfg["sampling_period"],
+            state_0=fix,
+            integrator_params=cfg["integrator_params"],
+            model_params=mp,
+            if_energy_test=True,
+            if_plot=False,
+            fig_dir="",
+        )
+    elif cfg["mode"] == "plot_sim":
+        plot_sim(
+            final_time=cfg["final_time"],
+            sampling_period=cfg["sampling_period"],
+            state_0=np.array(cfg["state_0"], dtype=float),
+            integrator_params=cfg["integrator_params"],
+            model_params=cfg["model_params"],
+            if_energy_test=False,
+            if_plot=cfg["if_plot"],
+            fig_dir=cfg["fig_dir"],
+        )
+    elif cfg["mode"] == "analysis":
+        # NOTE: RoA/Poincare horizons stay hardcoded (tf=10); only sampling_period comes from YAML.
+        analysis(
+            sampling_period=cfg["sampling_period"],
+            integrator_params=cfg["integrator_params"],
+            model_params=cfg["model_params"],
+            if_RoA_analysis=cfg["if_RoA_analysis"],
+            fig_dir=cfg["fig_dir"],
+            if_plot=cfg["if_plot"],
+        )
+    else:  # guarded by load_config; unreachable
+        raise ValueError(f"Unknown mode {cfg['mode']!r}.")
+
+    # Provenance: keep the exact input config alongside the outputs.
+    if cfg["fig_dir"] != "" and config_path is not None:
+        shutil.copy2(config_path, Path(cfg["fig_dir"]) / "config_used.yaml")
 
 if __name__ == "__main__":
     main()
