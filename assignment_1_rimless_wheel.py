@@ -6,7 +6,7 @@ from integrators import rk4 as integrator
 
 params = model.generate_params(num_spokes=8, slope_angle=0.2)
 
-initial_state = np.array([0.0, 0.2])  # start near vertical, small forward spin
+initial_state = np.array([0, 0.2])  # start near vertical, small forward spin
 
 timestep = 1e-3
 sim_time = 10.0
