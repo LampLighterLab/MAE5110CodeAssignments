@@ -12,151 +12,105 @@ params = {
     "gravity": 9.81,  # gravity m/s^2)
     "length": 0.5,  # rod length (m)
     "mass": 0.2,  # point mass at end of rod (kg)
-    "ramp_angle": -np.pi / 6,  # ramp angle (rad)
+    "ramp_angle": -np.pi / 9,  # ramp angle (rad)
     "number_of_spokes": 6,
     "alpha": np.pi / 6   # spoke angle (rad)
 }
 
 
-# some set-up
+# Set Up
 
-initial_state = np.array([0, -1])
-
+initial_state = np.array([-0.1, 0])
 common_timestep = 0.0001
-sim_time = 10.0         
+sim_time = 5.0
 
-# time_traj, state_traj = hybrid.integrate(rimless_wheel,rk4.step, common_timestep, sim_time, initial_state, params)
-
-#time_traj, state_traj = rimless_wheel_integrator.integrate(rimless_wheel.dynamics, common_timestep, sim_time, initial_state, params, rimless_wheel.detect_impact, rimless_wheel.apply_impact)
-
-#ROA Calculations
-
-LEFT, RIGHT = params["ramp_angle"] - params["alpha"], params["ramp_angle"] + params["alpha"]
-
-theta_grid_steps = np.arange(LEFT, RIGHT, 0.2)
-thetadot_grid_steps = np.arange(-10, 10, 1)
-ramp_angle_steps = np.arange(-5 *np.pi/180, -45 * np.pi/180, -5 *np.pi/180)
-num_spokes_steps = np.arange(6, 12, 1)
-
-limit_cycle_converged = []
-stopped_converged = []
-percent_limit_cycle_converged = []
-
-# params["ramp_angle"] = -np.pi/5
-for num_spokes in num_spokes_steps:
-
-    params["number_of_spokes"] = num_spokes
-    params["alpha"] = np.pi / num_spokes
-    LEFT, RIGHT = params["ramp_angle"] - params["alpha"], params["ramp_angle"] + params["alpha"]
-    for theta in theta_grid_steps:
-        for thetadot in thetadot_grid_steps:
-            initial_state = np.array([theta, thetadot])
-            time_traj, state_traj = rimless_wheel_integrator.integrate(rimless_wheel.dynamics, common_timestep, sim_time, initial_state, params, rimless_wheel.detect_impact, rimless_wheel.apply_impact)
-        
-        if(state_traj[1,-1]  < -0.1):
-            limit_cycle_converged.append(initial_state)
-        else:
-            stopped_converged.append(initial_state)
-
-    percent_limit_cycle_converged.append(len(limit_cycle_converged) / (len(limit_cycle_converged) + len(stopped_converged)) * 100)
-
-
-
-
-limit_cycle_converged = np.array(limit_cycle_converged)
-stopped_converged     = np.array(stopped_converged)
-
-print("Limit Cycle Converged Initial States: ", limit_cycle_converged)
-print("Stopped Converged Initial States: ", stopped_converged)
-
-
-# kinetic_energy, potential_energy = rimless_wheel.calculate_energy(state_traj, params)
-
-# plt.figure()
-# plt.plot(time_traj, potential_energy, label="Potential energy")
-# plt.plot(time_traj, kinetic_energy, label="Kinetic energy")
-# plt.plot(time_traj, potential_energy + kinetic_energy, label="Total energy")
-# plt.xlabel("Time (s)")
-# plt.ylabel("Energy (J)")
-# plt.title("Pendulum energy")
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
-
-
+# time_traj, state_traj = rimless_wheel_integrator.integrate(rimless_wheel.dynamics, common_timestep, sim_time, initial_state, params, rimless_wheel.detect_impact, rimless_wheel.apply_impact)
 
 
 # plt.figure()
-# plt.plot(ramp_angle_steps, percent_limit_cycle_converged, label="Percent Limit Cycle Converged")
-# plt.xlabel("Ramp Angle (rad)")
-# plt.ylabel("Percent Converged")
-# plt.title("Effect of Ramp Angle on Limit Cycle Convergence")
-# plt.legend()
-# plt.grid()
-# plt.show()
-
-plt.figure()
-plt.plot(num_spokes_steps, percent_limit_cycle_converged, label="Percent Limit Cycle Converged")
-plt.xlabel("Number of Spokes")
-plt.ylabel("Percent Converged")
-plt.title("Effect of Number of Spokes on Limit Cycle Convergence")
-plt.legend()
-plt.grid()
-plt.show()
-
-
-#
-
-
-
-# state space plot
-
-# plt.figure()
-# plt.plot(state_traj[0], state_traj[1], label="Phase Portrait")
+# plt.plot(state_traj[0, :], state_traj[1, :])
 # plt.xlabel("Angle(rad)")
 # plt.ylabel("Angular Momentum(rad/sec)")
-# plt.axvline(x=params["ramp_angle"] + params["alpha"], color='r', linestyle='--', label="Right Bound")
-# plt.axvline(x=params["ramp_angle"] - params["alpha"], color='r', linestyle='--', label="Left Bound")
 # plt.title("Rimless Wheel Phase Portrait")
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
-
-#Plotting the limit cycle line - AI assisted
-# G, L = params["gravity"], params["length"]
-# a, g = params["alpha"], params["ramp_angle"]
-# LEFT, RIGHT = g - a, g + a
-
-# # The wheel rolls toward whichever guard has lower potential energy
-# # (PE = m*g*L*cos(theta)), lands there, and is reset to the other one.
-# if np.cos(LEFT) < np.cos(RIGHT):
-#     start, land, sign = RIGHT, LEFT, -1.0     # rolls toward -theta
-# else:
-#     start, land, sign = LEFT, RIGHT, +1.0     # rolls toward +theta
-
-# c = np.cos(2 * a)
-# D = (2 * G / L) * (np.cos(start) - np.cos(land))
-# omega_star = np.sqrt(c**2 * D / (1 - c**2))   # post-impact speed on the cycle
-
-# theta_cycle = np.linspace(start, land, 400)
-# thetadot_cycle = sign * np.sqrt(omega_star**2 + (2 * G / L) * (np.cos(start) - np.cos(theta_cycle)))
-
-
-# plt.figure()
-# plt.scatter(limit_cycle_converged[:, 0], limit_cycle_converged[:, 1], label="Limit Cycle Converged", color='green')
-# if stopped_converged.size > 0:
-#     plt.scatter(stopped_converged[:, 0], stopped_converged[:, 1], label="Stopped Converged", color='red')
-# plt.xlabel("Angle(rad)")
-# plt.ylabel("Angular Momentum(rad/sec)")
 # plt.axvline(x=params["ramp_angle"] + params["alpha"], color='b', linestyle='--', label="Right Bound")
 # plt.axvline(x=params["ramp_angle"] - params["alpha"], color='b', linestyle='--', label="Left Bound")
-# plt.axhline(y=0, color='red', linestyle='--', label="Came to rest(Attractor)")
-# plt.plot(theta_cycle, thetadot_cycle, 'k', lw=2, label="Limit cycle(Attractor)", color='green')
-# plt.title("Rimless Wheel Phase Portrait")
-# plt.grid()
-# plt.legend()
-# plt.tight_layout()
 # plt.show()
+
+
+
+
+
+
+n_timesteps = int(sim_time / common_timestep) + 1
+time_traj = np.arange(n_timesteps) * common_timestep
+state_traj = np.zeros((2, n_timesteps))
+state_traj[:, 0] = initial_state
+
+angular_velocity_at_impact = []
+
+impact_numbers = []
+impact_number = 0  # initial impact number is 0
+
+# simulation loop
+for step, t in enumerate(time_traj[:-1]):
+
+    state_traj[:, step + 1] = state_traj[:, step] + common_timestep * rimless_wheel.dynamics(t, state_traj[:, step], params)
+
+    #overwrite the state + 1 if an impact is detected
+    if(rimless_wheel.detect_impact(state_traj[:, step + 1], params)):
+        impact_number += 1
+        impact_numbers.append(impact_number)
+        state_traj[:, step + 1] = rimless_wheel.apply_impact(state_traj[:,step + 1],params)
+        angular_velocity_at_impact.append(state_traj[1, step + 1])
+
+    # print("impact", state_traj[:,step + 1])
+
+# Getting Return Map - AI assisted
+LEFT, RIGHT = params["ramp_angle"] - params["alpha"], params["ramp_angle"] + params["alpha"]
+
+# The wheel rolls toward whichever guard has lower potential energy
+# (PE = m*g*L*cos(theta)), lands there, and is reset to the other one.
+if np.cos(LEFT) < np.cos(RIGHT):
+    start, land, sign = RIGHT, LEFT, -1.0     # rolls toward -theta
+else:
+    start, land, sign = LEFT, RIGHT, +1.0     # rolls toward +theta
+
+angulat_velocity_at_impact_multiplier = np.cos(2 * params["alpha"])
+energy_gained_over_step = (2 * params["gravity"] / params["length"]) * (np.cos(start) - np.cos(land))
+omega_star = np.sqrt(angulat_velocity_at_impact_multiplier**2 * energy_gained_over_step / (1 - angulat_velocity_at_impact_multiplier**2))   # post-impact speed on the cycle
+
+
+
+# ---- step-to-step return map ----
+w = np.linspace(0.1, 3.5, 300)
+
+plt.figure()
+plt.plot(w, angulat_velocity_at_impact_multiplier * np.sqrt(w**2 + energy_gained_over_step), lw=2, label=r"Return map $P(\omega)$")
+plt.plot(w, w, '--', label=r"Identity $\omega_{n+1} = \omega_n$")
+plt.plot(omega_star, omega_star, 'o', ms=9, label="Fixed point")
+plt.xlabel(r"$\omega_n^+$ [rad/s]")
+plt.ylabel(r"$\omega_{n+1}^+$ [rad/s]")
+plt.title("Rimless Wheel Step-to-Step Return Map")
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.show()
+
+# plt.figure()
+# plt.scatter(angular_velocity_at_impact[:-1], angular_velocity_at_impact[1:])
+# plt.xlabel("$\omega_n$ (rad/s)")
+# plt.ylabel("$\omega_{n+1}$ (rad/s)")
+# plt.title("Rimless Wheel Poincaré section Analysis")
+# plt.axhline(y = -omega_star, color='g', linestyle='--', label="Limit Cycle Angular Velocity")
+# plt.legend()
+# plt.show()
+
+
+
+
+
+
+
 
 
 
