@@ -79,6 +79,13 @@ After analyzing the spoke number and the ramp angle graphs its clear the an incr
 Return Map:
 ![Alt Text](/Users/jtthomforde/4110projects/MAE5110CodeAssignments/assignment_1_graphs/Rimless Wheel Return Map.png)
 
+Floqueint Multiplier Pertubation Sweep:
+
+Deciding what Pertubation to use:
+I swept pertubations from .01 to 0.5 to find a value that would find an accurate slope but not be too vulnurable to noise. I chose 0.1 because it was the closest to the theoretical value of 0.25. Results are below:
+
+
+
 ## Notes for PR
 Im still working on the Multiplier Sweeps and finishing up the report, let me know if you have any advice
 
