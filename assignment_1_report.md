@@ -102,16 +102,7 @@ which is where the map crosses the identity line in the figure below.
 Deciding what perturbation to use:
 I swept perturbations from .01 to 0.5 to find a value that would find an accurate slope but not be too vulnurable to noise. I chose 0.1 because it was the closest to the theoretical value of 0.25. Results are below:
 
-```mermaid
-xychart-beta
-    title "Floquet Multiplier vs Perturbation Size"
-    x-axis "Perturbation size δ" ["0.5", "0.2", "0.1", "0.05", "0.02", "0.01"]
-    y-axis "Floquet multiplier λ" 0.230 --> 0.260
-    line [0.2482, 0.2511, 0.2496, 0.2479, 0.2361, 0.2548]
-    line [0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
-```
-
-The flat second line is the analytic value, λ = cos²(2α) = 0.250000.
+Analytic value, λ = cos²(2α) = 0.250000.
 
 | δ | λ (measured) | error vs 0.250000 |
 |---|---|---|
