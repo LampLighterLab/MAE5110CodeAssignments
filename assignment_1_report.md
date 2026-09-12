@@ -89,8 +89,7 @@ Return Map:
 
 Using the contact event as a Poincaré section reduces the 2-D flow to a 1-D map:
 the state is (θ, θ̇), but at every impact θ is pinned to the guard angle, so only
-θ̇ varies. Composing the flight phase (energy conservation) with the collision
-(θ̇⁺ = θ̇⁻cos 2α) gives the return map
+θ̇ varies. Composing the energy conservation with the collision gives the return map:
 
     P(ω) = cos(2α)·√(ω² + D),   D = (2g/L)[cos θ_start − cos θ_land] = 13.4209
 
@@ -114,9 +113,9 @@ Analytic value, λ = cos²(2α) = 0.250000.
 | 0.01 | 0.254847 | 4.8e-03 |
 
 The estimate is most accurate at δ = 0.1 and degrades on both sides. Large δ
-measures a secant across the curved return map rather than its tangent; small
-δ divides a fixed timestep-detection error by a shrinking interval. The usable
-window is δ ≈ 0.05–0.5, so δ = 0.1 is quoted as the estimate.
+measures a less accurate slope across the curve rather than the limit cycle's tangent. Small
+δ is too vulnerable to system noise. The estimated usable
+window is δ ≈ 0.05–0.5, and δ = 0.1 was used as the estimate.
 
 ## Floquet Graphs Spoke and Slope Sweeps
 
