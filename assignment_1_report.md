@@ -67,11 +67,11 @@ I expected the lower bound for N to be 4 and when tested I was unable to get rol
 
 I expected two attractors, the limit cycle and the wheel at rest. When conducting the sweep each point on the graph represents the initial conditions at that point and the color represents which attractor the point converged to. The red points converged to the red line at 0 angular velocity and the green converged to the green line representing the rolling limit cycle.
 Params for the graphs:
-length: 0.5m
-mass: 0.2kg
-ramp angle: -pi/9 - varied in ramp angle sweep
-spoke number: 6 - varied in spoke number sweep
-alpha: pi/num_spokes
+- length: 0.5m
+- mass: 0.2kg
+- ramp angle: -pi/9 - varied in ramp angle sweep
+- spoke number: 6 - varied in spoke number sweep
+- alpha: pi/num_spokes
 ![ROA sweep phase portrait](<assignment_1_graphs/ROA Sweep Phase Portrait ass1 4110.png>)
 
 Ramp Angle Graph:
@@ -121,11 +121,11 @@ window is δ ≈ 0.05–0.5, so δ = 0.1 is quoted as the estimate.
 ## Floquet Graphs Spoke and Slope Sweeps
 
 Params for the graphs:
-length: 0.5m
-mass: 0.2kg
-ramp angle: -pi/9 - varied in ramp angle sweep
-spoke number: 6 - varied in spoke number sweep
-alpha: pi/num_spokes
+- length: 0.5m
+- mass: 0.2kg
+- ramp angle: -pi/9 - varied in ramp angle sweep
+- spoke number: 6 - varied in spoke number sweep
+- alpha: pi/num_spokes
 
 
 ![Floquet multiplier vs ramp angle](<assignment_1_graphs/Floquet_Ramp_Sweep.png>)
