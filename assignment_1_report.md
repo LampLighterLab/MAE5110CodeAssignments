@@ -1,9 +1,5 @@
 ## How to Run the code
 
-## Running the Code
-
-The relevant files are `assignment_1.py` and `assignment_1_sweep_graphs.py`. To run them, follow the directions enumerated below:
-
 ```bash
 git clone https://github.com/jthomforde/MAE5110CodeAssignments.git
 ```
@@ -18,26 +14,41 @@ The work for this assignment lives on a branch, so check it out before syncing:
 git checkout jht224/assignment_1
 ```
 
+Then run any of the seven experiments:
+
 ```bash
 uv sync --python 3.14
 ```
 
-Then, to run the main assignment:
-
 ```bash
-uv run python assignment_1.py
+uv run python assignment_1.py --experiment initial
 ```
 
-This takes roughly 3 minutes 40 seconds. It prints the classified initial states to the console and then displays the phase portrait with the analytic limit cycle overlaid.
-
-To generate the parameter sweep graphs:
-
 ```bash
-uv run python assignment_1_sweep_graphs.py
+uv run python assignment_1.py --experiment return_map
 ```
 
-This takes roughly 30 seconds.
+```bash
+uv run python assignment_1.py --experiment roa
+```
 
+```bash
+uv run python assignment_1.py --experiment roa_ramp_sweep
+```
+
+```bash
+uv run python assignment_1.py --experiment roa_spoke_sweep
+```
+
+```bash
+uv run python assignment_1.py --experiment floquet_ramp_sweep
+```
+
+```bash
+uv run python assignment_1.py --experiment floquet_spoke_sweep
+```
+
+The return map and Floquet experiments run in a few seconds each. The three ROA sweeps take 1–2.5 minutes each.
 
 
 ## Model Validation
@@ -51,43 +62,90 @@ I expected the system to be at rest at the selected initial condition and it was
 3. Lastly I tested the parameters to their respective bounds and making sure my system worked correctly. 
 I expected the lower bound for N to be 4 and when tested I was unable to get rolling motion with a 3 spoke wheel with no added angular velocity. I then testing slope at 0 and tested rolling both ways and the model acted correctly and didn't oscillate when at rest because both spokes were at the same height. I then tested at 90 degree slope and was able to get a limit cycle.
 
+
 ## ROA Findings
 
-I tested my ROA at  "length": 0.5,  # rod length (m) "mass": 0.2,  # point mass at end of rod (kg) "ramp_angle": -np.pi / 9,  # ramp angle (rad)  "number_of_spokes": 6,"alpha": np.pi / 6   # spoke angle (rad). Each point represents the initial conditions at that point and the color represents which attractor the point converged to. The red points converged to the red line at 0 angular velocity and the green converged to the green line representing the rolling limit cycle.
+I expected two attractors, the limit cycle and the wheel at rest. When conducting the sweep each point on the graph represents the initial conditions at that point and the color represents which attractor the point converged to. The red points converged to the red line at 0 angular velocity and the green converged to the green line representing the rolling limit cycle.
 Params for the graphs:
 length: 0.5m
 mass: 0.2kg
 ramp angle: -pi/9 - varied in ramp angle sweep
 spoke number: 6 - varied in spoke number sweep
 alpha: pi/num_spokes
-![Alt Text](/Users/jtthomforde/4110projects/MAE5110CodeAssignments/assignment_1_graphs/ROA Sweep Phase Portrait ass1 4110.png)
-
-
+![ROA sweep phase portrait](<assignment_1_graphs/ROA Sweep Phase Portrait ass1 4110.png>)
 
 Ramp Angle Graph:
-![Alt Text](/Users/jtthomforde/4110projects/MAE5110CodeAssignments/assignment_1_graphs/Ramp Angle Sweep - ass_1 5110.png)
-spoke number = 6
+![Ramp angle sweep](<assignment_1_graphs/Ramp_Angle_ROA_Sweep.png>)
 
 Spoke Number Graph:
-![Alt Text](/Users/jtthomforde/4110projects/MAE5110CodeAssignments/assignment_1_graphs/Spoke Sweep ass1_graph.png)
-ramp angle: pi/9 rad
+![Spoke sweep](<assignment_1_graphs/Spoke_Sweep_ROA.png>)
 
-After analyzing the spoke number and the ramp angle graphs its clear the an increase in ramp angle increases the number of spokes leads to higher percent of the state space converging to the limit cycle. This is also intuitive when thinking about the sweeps. The smaller alpha coorelates to a smaller loss in angular velocity during impact. The increase in ramp angle also means that it is easier for the wheel to turn over the upright position because its less change in potential energy between impact position and peak position at theta = 0. 
+Increasing the ramp angle raises the fraction of state space converging to the limit cycle, and so does increasing the number of spokes. Both follow from the same mechanism where a smaller alpha means less angular velocity lost at each impact, and a steeper ramp means a smaller potential energy barrier between the impact position and the peak at theta = 0.
 
-## Poncaire Section and Multiplier
+## Poincare Section
 
 Return Map:
-![Alt Text](/Users/jtthomforde/4110projects/MAE5110CodeAssignments/assignment_1_graphs/Rimless Wheel Return Map.png)
+![Return map](<assignment_1_graphs/Rimless Wheel Return Map.png>)
 
-Floqueint Multiplier Pertubation Sweep:
+Using the contact event as a Poincaré section reduces the 2-D flow to a 1-D map:
+the state is (θ, θ̇), but at every impact θ is pinned to the guard angle, so only
+θ̇ varies. Composing the flight phase (energy conservation) with the collision
+(θ̇⁺ = θ̇⁻cos 2α) gives the return map
 
-Deciding what Pertubation to use:
-I swept pertubations from .01 to 0.5 to find a value that would find an accurate slope but not be too vulnurable to noise. I chose 0.1 because it was the closest to the theoretical value of 0.25. Results are below:
+    P(ω) = cos(2α)·√(ω² + D),   D = (2g/L)[cos θ_start − cos θ_land] = 13.4209
+
+Setting P(ω*) = ω* gives the fixed point ω* = √D / tan(2α) = **2.1151 rad/s**,
+which is where the map crosses the identity line in the figure below.
+
+## Floquet Multiplier Perturbation Sweep:
+
+Deciding what perturbation to use:
+I swept perturbations from .01 to 0.5 to find a value that would find an accurate slope but not be too vulnurable to noise. I chose 0.1 because it was the closest to the theoretical value of 0.25. Results are below:
+
+```mermaid
+xychart-beta
+    title "Floquet Multiplier vs Perturbation Size"
+    x-axis "Perturbation size δ" ["0.5", "0.2", "0.1", "0.05", "0.02", "0.01"]
+    y-axis "Floquet multiplier λ" 0.230 --> 0.260
+    line [0.2482, 0.2511, 0.2496, 0.2479, 0.2361, 0.2548]
+    line [0.25, 0.25, 0.25, 0.25, 0.25, 0.25]
+```
+
+The flat second line is the analytic value, λ = cos²(2α) = 0.250000.
+
+| δ | λ (measured) | error vs 0.250000 |
+|---|---|---|
+| 0.50 | 0.248189 | 1.8e-03 |
+| 0.20 | 0.251057 | 1.1e-03 |
+| 0.10 | 0.249631 | 3.7e-04 |
+| 0.05 | 0.247888 | 2.1e-03 |
+| 0.02 | 0.236129 | 1.4e-02 |
+| 0.01 | 0.254847 | 4.8e-03 |
+
+The estimate is most accurate at δ = 0.1 and degrades on both sides. Large δ
+measures a secant across the curved return map rather than its tangent; small
+δ divides a fixed timestep-detection error by a shrinking interval. The usable
+window is δ ≈ 0.05–0.5, so δ = 0.1 is quoted as the estimate.
+
+## Floquet Graphs Spoke and Slope Sweeps
+
+Params for the graphs:
+length: 0.5m
+mass: 0.2kg
+ramp angle: -pi/9 - varied in ramp angle sweep
+spoke number: 6 - varied in spoke number sweep
+alpha: pi/num_spokes
 
 
+![Floquet multiplier vs ramp angle](<assignment_1_graphs/Floquet_Ramp_Sweep.png>)
 
-## Notes for PR
-Im still working on the Multiplier Sweeps and finishing up the report, let me know if you have any advice
+Ramp angle does not have an effect on the floquent multiplier. As the ramp angle increases from 5 to 45 degrees the floquent multiplier stays steady around 0.25. This is expected mathmatically. As long as alpha doenst change the multiplier should stay the same. 
+
+![Floquet multiplier vs spoke count](assignment_1_graphs/Floquent_Spoke_Sweep.png)
+
+As the numver of spokes increase, floquet multiplier increases as well. This larger eigenvalue represents a longer convergence to the limit cycle. Mathmatically as number of spokes increases, alpha decreases and the rimless wheel approaches the dynamics of a real wheel. At alpha = 0, the floquet multiplier will = 1 and the wheel will never reach the limit cycle. The sweep acted as expected for the number of spokes I iterated over. 
+
+
 
 
 

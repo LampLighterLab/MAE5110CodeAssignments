@@ -132,8 +132,6 @@ def ramp_angle_ROA_sweep(params, common_timestep, sim_time):
     limit_cycle_converged = np.array(limit_cycle_converged)
     stopped_converged     = np.array(stopped_converged)
 
-    print("Limit Cycle Converged Initial States: ", limit_cycle_converged)
-    print("Stopped Converged Initial States: ", stopped_converged)
 
 
 
