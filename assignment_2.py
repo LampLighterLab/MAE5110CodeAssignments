@@ -27,13 +27,20 @@ state_traj = np.zeros((2, n_timesteps))
 state_traj[:, 0] = initial_state
 completed_steps = 0
 
+# TODO: Figure out the most elegant way to perform the RoA grid simulation for ankle torques
+
 # Simulation loop. Replace this Euler step with your own integrator as needed.
+# TODO: Replace with RK4? Might have to just insert it into here. Or change the integrator to perform a single RK4 step
 for step, t in enumerate(time_traj[:-1]):
     state = state_traj[:, step]
+
+    if model.ankle_torque_guard(state, params):
+        model.update_ankle_torque(state, params)
+
     next_state = state + timestep * model.dynamics(t, state, params)
 
-    if model.event_guard(state, next_state, params):
-        next_state = model.event_dynamics(next_state, params)
+    if model.step_transition_guard(state, next_state, params):
+        next_state = model.step_transition_dynamics(next_state, params)
         completed_steps += 1
 
     state_traj[:, step + 1] = next_state
@@ -62,7 +69,7 @@ if frame_indices[-1] != time_traj.size - 1:
 animation = FuncAnimation(
     fig, draw_frame, frames=frame_indices, interval=1000 / fps, repeat=False
 )
-output = Path("output/assignment_2")
+output = Path("output-assignment2/assignment_2")
 output.mkdir(parents=True, exist_ok=True)
 animation.save(output / "walker.gif", writer=PillowWriter(fps=fps))
 
