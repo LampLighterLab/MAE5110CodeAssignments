@@ -9,24 +9,79 @@ import numpy as np
 
 
 def generate_params():
-    pass
+    params = {
+        "gravity": 9.81,  # gravity (m/s^2)
+        "length": 1.0,  # leg length l (m)
+        "mass": 1.0,  # point mass at hip (kg)
+        "incline": 0.08,  # downhill ground inclination gamma (rad)
+        "angle_of_attack": 0.2,  # half the angle between stance and swing legs (rad)
+        "ankle_torque": 0.0,  # optional ankle torque (N m)
+    }
+    return params
 
 
 def dynamics(t, state, params):
     # TODO: implement the state derivative.
-    return np.array([0.0, 0.0])
+        gravity = params["gravity"]
+        length = params["length"]
+        mass = params["mass"]
+        torque = float(params.get("ankle_torque", 0.0)) #This one is weird because ankle torque is optional, so we have to use get() to avoid a KeyError if it's not present
+        
+        angle = state[0]
+        angular_velocity = state[1]
+        
+        angular_acceleration = (gravity / length) * np.sin(angle) + torque / (mass * length**2)
+        
+        state_derivative = np.array([angular_velocity, angular_acceleration])
+    return state_derivative
 
 
 def event_guard(previous_state, next_state, params):
-    pass
+        #Get next previous theta
+        theta_prev = previous_state[0]
+        theta_next = next_state[0]
+        
+        #need these parameters too
+        alpha = params["angle_of_attack"]
+        slope = params["incline"]
+        
+        #chech if it is going to hit the ground in the next step
+        hit_ground = theta_prev < slope + alpha and theta_next >= slope + alpha
+        
+    return hit_ground
 
 
 def event_dynamics(state, params):
-    pass
+        previous_theta = state[0]
+        previous_angular_velocity = state[1]
+        
+        alpha = params["angle_of_attack"]
+        new_theta = previous_theta - 2 *alpha #look at the geometry it just checks out
+        new_angular_velocity = previous_angular_velocity * np.cos(2 * alpha)# this one is just a dot product of the previous vector in the direction of the new velocity
+        
+        new_state = np.array([new_theta, new_angular_velocity])
+        
+    return new_state
 
 
 def calculate_energy(state, params):
-    pass
+    #If future Robert comes back to this remember that ankle torque does work and its ok for
+    #energy to not be conserved.
+        length = params["length"]
+        mass = params["mass"]
+        gravity = params["gravity"]
+        
+        angle = state[0]
+        angular_velocity = state[1]
+        
+        #Kinetic energy is easy lets start there
+        velocity = length * angular_velocity
+        kinetic_energy = 0.5 * mass * velocity**2
+        
+        #Now for gravitational potential we start by finding the height of the mass above the ground
+        height = length * np.cos(angle)
+        potential_energy = mass * gravity * height
+    return kinetic_energy, potential_energy
 
 
 def visualize(
