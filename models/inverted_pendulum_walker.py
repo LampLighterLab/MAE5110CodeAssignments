@@ -9,12 +9,31 @@ import numpy as np
 
 
 def generate_params():
-    pass
+    params = {
+        "gravity": 9.81,  # gravity (m/s^2)
+        "length": 1.0,  # leg length l (m)
+        "mass": 1.0,  # point mass at hip (kg)
+        "incline": 0.08,  # downhill ground inclination gamma (rad)
+        "angle_of_attack": 0.2,  # half the angle between stance and swing legs (rad)
+        "ankle_torque": 0.0,  # optional ankle torque (N m)
+    }
+    return params
 
 
 def dynamics(t, state, params):
     # TODO: implement the state derivative.
-    return np.array([0.0, 0.0])
+        gravity = params["gravity"]
+        length = params["length"]
+        mass = params["mass"]
+        torque = float(params.get("ankle_torque", 0.0))
+        
+        angle = state[0]
+        angular_velocity = state[1]
+        
+        angular_acceleration = (gravity / length) * np.sin(angle) + torque / (mass * length**2)
+        
+        state_derivative = np.array([angular_velocity, angular_acceleration])
+    return state_derivative
 
 
 def event_guard(previous_state, next_state, params):
