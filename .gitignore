@@ -99,31 +99,12 @@ __pycache__/
 uv.lock
 assignments_tex/
 
-# Allow only the images embedded in assignment_1/assignment_1_deliverable.md.
-!/assignment_1/assignment_1_data/floquet_gamma_0.080000_N_12.png
-!/assignment_1/assignment_1_data/floquet_gamma_0.080000_N_8.png
-!/assignment_1/assignment_1_data/floquet_gamma_0.260000_N_8.png
-!/assignment_1/assignment_1_data/floquet_gamma_0.390000_N_6.png
-!/assignment_1/assignment_1_data/rimless_wheel_energy_gamma_0.080_N_12.png
-!/assignment_1/assignment_1_data/rimless_wheel_energy_gamma_0.080_N_6.png
-!/assignment_1/assignment_1_data/rimless_wheel_energy_gamma_0.260_N_8.png
-!/assignment_1/assignment_1_data/rimless_wheel_energy_gamma_0.390_N_12.png
-!/assignment_1/assignment_1_data/rimless_wheel_energy_gamma_0.390_N_6.png
-!/assignment_1/assignment_1_data/rimless_wheel_energy_gamma_0.390_N_8.png
-!/assignment_1/assignment_1_data/rimless_wheel_energy_loss_summary.png
-!/assignment_1/assignment_1_data/rimless_wheel_incline_summary.png
-!/assignment_1/assignment_1_data/rimless_wheel_return_map_gamma_0.080_N_12.png
-!/assignment_1/assignment_1_data/rimless_wheel_return_map_gamma_0.080_N_8.png
-!/assignment_1/assignment_1_data/rimless_wheel_return_map_gamma_0.260.png
-!/assignment_1/assignment_1_data/rimless_wheel_return_map_gamma_0.390.png
-!/assignment_1/assignment_1_data/rimless_wheel_return_map_gamma_0.390_N_6.png
-!/assignment_1/assignment_1_data/rimless_wheel_roa_gamma_0.080.png
-!/assignment_1/assignment_1_data/rimless_wheel_roa_gamma_0.080_N_12.png
-!/assignment_1/assignment_1_data/rimless_wheel_roa_gamma_0.260.png
-!/assignment_1/assignment_1_data/rimless_wheel_roa_gamma_0.390_N_6.png
-!/assignment_1/assignment_1_data/rimless_wheel_roa_gamma_0.390_N_8.png
-!/assignment_1/assignment_1_data/rimless_wheel_sanity_angle.png
-!/assignment_1/assignment_1_data/rimless_wheel_sanity_angular_velocity.png
-!/assignment_1/assignment_1_data/rimless_wheel_sanity_energy.png
-!/assignment_1/assignment_1_data/rimless_wheel_sanity_phase_portrait.png
-!/assignment_1/assignment_1_data/rimless_wheel_spoke_summary.png
+# Assignment 2 figures, numerical tables, and compiled report are reproducible.
+output/
+tmp/pdfs/
+
+# Local PDF export helpers and intermediate reports
+/assignment_2/export_report.sh
+/assignment_2/report.css
+/assignment_2/*.html
+/assignment_2/*.tex
