@@ -45,6 +45,13 @@ Some tips:
 - You'll eventually need to add a command to keyboard teleop, which you can do in the file `gym/utils/interfaces/teleop_bindings.py`. We've already taken care of adding the bindings to the up/down arrows, but you need to map this to the appropriate state in your robot environment. Read how other key-board commands are implemented in `TeleopCommands.apply()` and add to it.
 - One of the most important implementation details is to get the scaling right. When you implement a new state/buffer, how will you check how it should be normalized?
 - Remember to "walk through the code flow" once with the debugger. Don't try to understand every single step in one go, but get an overall sense of things, and come back to things as you go.
+- Some useful VSCode commands:
+  - `ctrl`+`shift`+`P` (`cmd`+`shift`+`P` on macOS; generally, `ctrl` is replaced with `cmd` on macOS) will bring up the Command Palette, from where you can find any action. You should get very comfortable doing things from here instead of clicking through drop-downs.
+  - From the Command Palette, you can apply `Fold All` (or `Unfold All`) to fold all indented code, which is helpful for getting an overview of long code-files.
+  - `ctrl`+`P` lets you go to any file, with lazy-search (you can type parts of the filename in any order, and it will show you matches). Very useful for navigating around different files.
+  - `ctrl`+`tab` and `ctrl`+`shift`+`tab` (this one is also `ctrl` on macOS) lets you cycle forward and backward through tabs (just like in a browser). Side-note, I highly recommend remapping your caps-lock key to a second `ctrl` key; the `ctrl` key is super useful in the terminal and everywhere, caps-lock is useless; but it's in a much more ergonomic position on the keyboard.
+  - The command 'go to definition' with a variable/function selected will take you to its definition, in whichever file it should be. You can find it by right-clicking a variable/function or look up the hotkey (I have it mapped to `cmd`+`k`; `cmd`+`g`, but I don't think that's the default).
+  - `ctrl`+`D` will select the word your cursor is at; press it again to also select the next instance of the word, ad nauseum; you now have multiple-cursors and can replace many things at once. You can also instantly select all instances, or manually place cursors with `alt`+`click` (`opt`+`click` on mac).
 - You are encouraged to talk to each other and share notes, especially on Ed.
 
 ### Optional: Weights & Biases
