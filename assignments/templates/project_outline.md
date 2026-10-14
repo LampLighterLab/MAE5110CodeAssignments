@@ -56,20 +56,20 @@ To assess performance, we will look at how "clean" the landing is:
 
 # *[MAE5110 Contribution-driven example]*
 ## Context
-Current state-of-the-art RL control for legged robots learn policies that output the targets for a PD joint position controller, implemented as part of the environment, of the form
+Current state-of-the-art RL control for legged robots learn policies that output the joint position targets for a PD controller, implemented as part of the environment, of the form
 $$
 \tau = K_p (q_{\text{target}} - q) + K_d (\dot{q}_{\text{target}} - \dot{q}),
 $$
 where $\tau$ is the joint torque, $K_p$ and $K_d$ are feedback gains, and $q$ and $\dot{q}$ are the joint positions and velocities, respectively.
 However, the policies typically only output the joint position targets, and leave the velocity target $\dot{q}_{\text{target}} = 0$.
-This is often justified by the ambiguity introduced by an action space including both terms, since a desired torque $\tau$ can be achieved by infinite combinations of $q_{\text{target}}$ and $\dot{q}_{\text{target}}$.
+This is often justified by the ambiguity introduced by an action space including both terms, since a desired torque $\tau$ can be achieved by different combinations of $q_{\text{target}}$ and $\dot{q}_{\text{target}}$.
 
-Despite this, compared to established practices for tuning $K_p$ and $K_d$, the feedback gains are comparatively "soft", and it has been empirically observed that policies often learn to output desired positions $q_{\text{target}}$ that are well outside the kinematic limits of the robot.
-This can lead to policies with lower performance, or require additional reward shaping to avoid dangerous motions that slam into hardstops.
+<!-- Despite this, compared to established practices for tuning $K_p$ and $K_d$, the feedback gains are comparatively "soft", and it has been empirically observed that policies often learn to output desired positions $q_{\text{target}}$ that are well outside the kinematic limits of the robot.
+This can lead to policies with lower performance, or require additional reward shaping to avoid dangerous motions that slam into hardstops. -->
 <!-- This all suggests that the action space is somehow a blend of an impedance controller and a position controller. -->
 
 ## Contribution
-We show that the an action space including both $q_{\text{target}}$ and $\dot{q}_{\text{target}}$ is ambiguous under typical reward shaping, but that eliminating this ambiguity allows for more expressive policies, that violate kinematic constraints less often, and are better able to deal with motions that require precise and abrupt changes in movement, such as quick stopping from running.
+We show that the an action space including both $q_{\text{target}}$ and $\dot{q}_{\text{target}}$ is ambiguous under typical reward shaping, but that eliminating this ambiguity results in policies that violate kinematic constraints less often, and are better able to deal with behaviors that require both high velocity and abrupt changes in velocity, such as coming to a quick stop from running.
 
 ## Experiment
 We will establish the presence of ambiguity by comparing three cases:
