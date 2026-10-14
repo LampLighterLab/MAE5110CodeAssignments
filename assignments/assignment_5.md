@@ -9,6 +9,7 @@
 - Practice outcome-driven project planning
   - Translate intuitive desired outcomes into concrete, testable experiments
   - Practice clear and concise writing
+
 ## Deliverable
 
 Two or three 1-page (max) PDF outlines of your proposed project; figures can take up a second page. A shorter outline is better! This is the exploration phase.
