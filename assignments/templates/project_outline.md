@@ -49,10 +49,13 @@ Stretch goals will be to perform back-flips while moving, or to do other acrobat
 ## How will you show it?
 
 To assess performance, we will look at how "clean" the landing is:
+
 - how quickly rotational momentum is dissipated and if it has oscillations
 - time from touch-down to stable standing
 - as well as number of foot-repositioning (lifting the foot after it has touched-down).
 - difference of the above between simulation and hardware experiments
+
+\newpage
 
 # *[MAE5110 Contribution-driven example]*
 ## Context
@@ -73,6 +76,7 @@ We show that the an action space including both $q_{\text{target}}$ and $\dot{q}
 
 ## Experiment
 We will establish the presence of ambiguity by comparing three cases:
+
 1. action-space $\mathcal{A}: [q_{\text{target}}]$ (baseline)
 2. action-space $\mathcal{A}: [q_{\text{target}}, \dot{q}_{\text{target}}]$.
 3. action-space $\mathcal{A}: [q_{\text{target}}]$ with $\dot{q}_{\text{target}}$ computed from a history of $q_{\text{target}}$.
