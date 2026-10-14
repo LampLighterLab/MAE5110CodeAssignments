@@ -1,6 +1,6 @@
 # Assignment 5
 
-**Submission Deadline:** Wednesday, October 21st, 11:59PM (midnight)
+**Submission Deadline:** Friday, October 23rd, 11:59PM (midnight)
 
 **Grading:** by completion.
 
