@@ -42,10 +42,10 @@ your idea more clearly. This is an exploration, so say what you are still unsure
 Include related work where it helps explain your idea.
 
 Build from the folder containing your copy:
-  pandoc project_outline.md --pdf-engine=pdflatex -o project_outline.pdf
+  pandoc project_outline.md --from=gfm+raw_attribute+smart --pdf-engine=pdflatex -o project_outline.pdf
 
 The matching LaTeX template is generated with:
-  pandoc project_outline.md --standalone -o project_outline.tex
+  pandoc project_outline.md --from=gfm+raw_attribute+smart --standalone -o project_outline.tex
 -->
 
 # *[MAE4110 Performance-driven example]*
@@ -76,7 +76,7 @@ $$
 $$
 
 where $\tau$ is the joint torque, $K_p$ and $K_d$ are feedback gains, and $q$ and $\dot{q}$ are the joint positions and velocities, respectively.
-However, the policies typically only output the joint position targets, and leave the velocity target $\dot{q}_{\text{target}} = 0$.
+However, the policies typically only output the joint position targets, and leave the velocity target $`\dot{q}_{\text{target}} = 0`$.
 This is often justified by the ambiguity introduced by an action space including both terms, since a desired torque $\tau$ can be achieved by different combinations of $q_{\text{target}}$ and $\dot{q}_{\text{target}}$.
 
 <!-- Despite this, compared to established practices for tuning $K_p$ and $K_d$, the feedback gains are comparatively "soft", and it has been empirically observed that policies often learn to output desired positions $q_{\text{target}}$ that are well outside the kinematic limits of the robot.
