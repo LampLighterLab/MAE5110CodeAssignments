@@ -72,11 +72,14 @@ This can lead to policies with lower performance, or require additional reward s
 We show that the an action space including both $q_{\text{target}}$ and $\dot{q}_{\text{target}}$ is ambiguous under typical reward shaping, but that eliminating this ambiguity allows for more expressive policies, that violate kinematic constraints less often, and are better able to deal with motions that require precise and abrupt changes in movement, such as quick stopping from running.
 
 ## Experiment
-We will establish the presence of ambiguity by comparing policies with action-space $\mathcal{A}: [q_{\text{target}}]$ and $\mathcal{A}: \dot{q}_{\text{target}}]$. For each, we will compare the variance in policy output to variance in torque output, and in overall reward-output.
+We will establish the presence of ambiguity by comparing three cases:
+1. action-space $\mathcal{A}: [q_{\text{target}}]$ (baseline)
+2. action-space $\mathcal{A}: [q_{\text{target}}, \dot{q}_{\text{target}}]$.
+3. action-space $\mathcal{A}: [q_{\text{target}}]$ with $\dot{q}_{\text{target}}$ computed from a history of $q_{\text{target}}$.
+
+For each, we will compare the variance in policy output to variance in torque output, and in overall reward-output.
 
 We will then benchmark custom rewards that separately penalize $q_{\text{target}}$ and $\dot{q}_{\text{target}}$ to disambiguate the action space, and validate them in terms of variance ratio (see above), and also in terms of frequency of the policy outputting kinematically infeasible commands during walking, running, and transitions.
-
-For each of these, we will also benchmark overall policy performance in terms of stability, both in simulation and hardware, for walking, running, and transitions.
 
 
 
