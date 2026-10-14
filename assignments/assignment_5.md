@@ -1,15 +1,14 @@
 # Assignment 5
 
 **Submission Deadline:** Wednesday, October 21st, 11:59PM (midnight)
+
 **Grading:** by completion.
 
-
 **Goals:**
+
 - Practice outcome-driven project planning
   - Translate intuitive desired outcomes into concrete, testable experiments
   - Practice clear and concise writing
-
-
 ## Deliverable
 
 Two or three 1-page (max) PDF outlines of your proposed project; figures can take up a second page. A shorter outline is better! This is the exploration phase.
@@ -17,21 +16,23 @@ You should use the provided [Markdown template](templates/project_outline.md), a
 
 Remember, you are not committing any of these proposals yet, you are using this exercise as a way to synthethize your possible ideas, and put them in a shareable format that others can give feedback on.
 
-You may already form teams if you wish; if you do, clearly list your team-mates in your submission, and upload only once; for logistic reasons, your teammates will submit a blank template with just their teammate details filled in.  
+You may already form teams if you wish; if you do, clearly list your team-mates in your submission, and upload only once; for logistic reasons, your teammates will submit a blank template with just their teammate details filled in.
+
 You may also submit your idea indipendently, in which case the course staff will help place you with a team interested in a similar topic, to the best of our ability.
 
 ### Contribution/Goal
 
 The most important part of this document is to identify what you want to achieve, and how you will claim you have achieved it.
 
-**GenAI use (optional)**  
+**GenAI use (optional)**
 
 My suggestion is to do some brain-storming / mind-mapping on paper first, and decide on the ideas _you_ find interesting.
 Then use genAI as a sounding board: prompt it first to critique and be pedantic about your ideas, then explain what you're thinking of, and have it poke holes and ask you for clarifications.
 
 If you already have a team (or any other willing friends), even better is to do this first with other humans, then with the AI, and reflect on how it was different, how it was similar, and how you will approach ideation and project-synthesis moving forward.
 
-**For MAE 5110 Students**  
+**For MAE 5110 Students**
+
 Your proposals need to be centered around a contribution; you may come up with something new (incl. from your own research, if feasible), you may also reproduce an existing paper.
 If you choose to reproduce an existing paper, the proposal should be very clear on what aspects of the paper you wish to reproduce, and how you will validate that the reproduction is meaningful.
 

@@ -1,6 +1,6 @@
 ---
 title: "[Project title]"
-author: "[Your name, or all teammates' names]"
+author: "[Your name and netID, or all teammates' names and netIDs]"
 date: ""
 documentclass: article
 fontsize: 11pt
@@ -9,6 +9,7 @@ geometry: margin=0.85in
 pagestyle: empty
 header-includes:
   - |
+    ```{=latex}
     \usepackage{graphicx}
     \usepackage{titlesec}
     \titleformat{\section}{\normalfont\large\bfseries}{}{0pt}{}
@@ -24,6 +25,14 @@ header-includes:
       {\normalsize\@author\par}
       \endgroup\vspace{0.6em}}
     \makeatother
+    % Start each example on a new PDF page without raw LaTeX in the Markdown body.
+    \newif\ifoutlinefirstsection
+    \outlinefirstsectiontrue
+    \let\outlinesection\section
+    \renewcommand{\section}{%
+      \ifoutlinefirstsection\outlinefirstsectionfalse\else\clearpage\fi
+      \outlinesection}
+    ```
 ---
 
 <!--
@@ -40,6 +49,7 @@ The matching LaTeX template is generated with:
 -->
 
 # *[MAE4110 Performance-driven example]*
+
 ## What do you want to achieve?
 
 Get the robot to backflip on command.
@@ -55,14 +65,16 @@ To assess performance, we will look at how "clean" the landing is:
 - as well as number of foot-repositioning (lifting the foot after it has touched-down).
 - difference of the above between simulation and hardware experiments
 
-\newpage
-
 # *[MAE5110 Contribution-driven example]*
+
 ## Context
+
 Current state-of-the-art RL control for legged robots learn policies that output the joint position targets for a PD controller, implemented as part of the environment, of the form
+
 $$
 \tau = K_p (q_{\text{target}} - q) + K_d (\dot{q}_{\text{target}} - \dot{q}),
 $$
+
 where $\tau$ is the joint torque, $K_p$ and $K_d$ are feedback gains, and $q$ and $\dot{q}$ are the joint positions and velocities, respectively.
 However, the policies typically only output the joint position targets, and leave the velocity target $\dot{q}_{\text{target}} = 0$.
 This is often justified by the ambiguity introduced by an action space including both terms, since a desired torque $\tau$ can be achieved by different combinations of $q_{\text{target}}$ and $\dot{q}_{\text{target}}$.
@@ -72,9 +84,11 @@ This can lead to policies with lower performance, or require additional reward s
 <!-- This all suggests that the action space is somehow a blend of an impedance controller and a position controller. -->
 
 ## Contribution
+
 We show that the an action space including both $q_{\text{target}}$ and $\dot{q}_{\text{target}}$ is ambiguous under typical reward shaping, but that eliminating this ambiguity results in policies that violate kinematic constraints less often, and are better able to deal with behaviors that require both high velocity and abrupt changes in velocity, such as coming to a quick stop from running.
 
 ## Experiment
+
 We will establish the presence of ambiguity by comparing three cases:
 
 1. action-space $\mathcal{A}: [q_{\text{target}}]$ (baseline)
@@ -84,14 +98,12 @@ We will establish the presence of ambiguity by comparing three cases:
 For each, we will compare the variance in policy output to variance in torque output, and in overall reward-output.
 
 We will then benchmark custom rewards that separately penalize $q_{\text{target}}$ and $\dot{q}_{\text{target}}$ to disambiguate the action space, and validate them in terms of variance ratio (see above), and also in terms of frequency of the policy outputting kinematically infeasible commands during walking, running, and transitions.
-
-
-
 <!--
-Optional: put supporting figures on a second page. To force a page break and
-include a figure, uncomment the following lines and replace the path and caption:
+Optional: put supporting figures on a second page. Each top-level heading starts
+a new PDF page. To add a figures page, uncomment the following lines and replace
+the path and caption:
 
-\newpage
+# Supporting figures
 
-![Caption explaining how the figure helps communicate your idea.](figure.png){width=80%}
+![Caption explaining how the figure helps communicate your idea.](figure.png)
 -->
