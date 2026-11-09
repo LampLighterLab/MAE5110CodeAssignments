@@ -1,6 +1,6 @@
 # Assignment 6
 
-**Submission Deadline:** Monday, November 9th, 11:59PM (midnight)
+**Submission Deadline:** Monday, November 16th, 11:59PM (midnight)
 
 **Grading:**
 
