@@ -28,3 +28,4 @@ uv run python assignment_0.py
 - [Assignment 4](assignments/assignment_4.md)
 - [Assignment 5](assignments/assignment_5.md)
 - [Assignment 6](assignments/assignment_6.md)
+- [Assignment 7](assignments/assignment_7.md)
