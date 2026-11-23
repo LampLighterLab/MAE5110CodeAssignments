@@ -5,8 +5,8 @@
 **Goals:**
 
 - Design targeted and quantified experiments
-- Present your work effectively
 - Iterate sim-to-real transfer
+- Present your work effectively
 
 ## Deliverable
 
@@ -31,11 +31,11 @@ This is a lot to fit into 3 pages, so focus on what matters most. The introducti
 
 Follow the advice in [Whitesides’ Group: Writing a Paper](https://doi.org/10.1002/adma.200400767); use Assignment 6 as your draft and revise it as you run experiments and get results. Early results will often help you refine your contribution and adjust the next set of experiments to sharpen your claims.
 
-**Important:** your claims should be validated in a quantified way!
+**Important:** your claims should be validated in a quantified way! If sim-to-real (or anything else) is unsuccessful, you should give your assessment of why, and follow that up with a quantified experiment.
 
 ### Video
 
 Create a 2–3 minute video abstract of your work.
-The video has the same intent and should follow the same overall structure as the written report, but highly compressed. You may omit related work here, but do make the motivation and gap clear. Be selective about which experiments and details you explain, and focus more on the results, especially hardware results. You can also show "cool" simulations if some things didn't transfer properly; if sim to real transfer didn't work at all, do show a clip of the failed attempt and follow up with commentary of why you believe it failed. Showing sim and hardware side by side is ideal.
+The video has the same intent and should follow the same overall structure as the written report, but highly compressed. You may omit related work here, but do make the motivation and gap clear. Be selective about which experiments and details you explain, and focus more on the results, especially hardware results. You can also show "cool" simulations if some things didn't transfer properly; if sim to real transfer didn't work at all, do show a clip of the failed attempt and follow up with commentary of why you believe it failed, and how you quantified this observation. Showing sim and hardware side by side is ideal.
 
 We recommend making a screen recording of a presentation. Zoom works well for this. If you prefer to skip recording your own voice-over, you may use AI narration with captions.
